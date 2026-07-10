@@ -6,6 +6,7 @@ import { ButterflyBackground } from '@/components/ButterflyBackground'
 import { FadeView } from '@/components/FadeView'
 import { GlassCard } from '@/components/GlassCard'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
+import { SmartViewsSection } from '@/components/settings/SmartViewsSection'
 import { TagsSection } from '@/components/settings/TagsSection'
 import { onTabReset } from '@/lib/tab-events'
 import { useTheme } from '@/theme/ThemeContext'
@@ -25,9 +26,14 @@ export default function SettingsScreen() {
           <ScrollView contentContainerStyle={styles.content}>
             <Text style={[styles.title, { color: tokens.textPrimary }]}>Settings</Text>
 
+            {/* Archive + smart views (Step 23) */}
+            <SmartViewsSection />
+
             {/* Tags management (Step 19) — the full settings page assembles
-                around this in Step 25 */}
-            <TagsSection />
+                around these in Step 25 */}
+            <View style={{ marginTop: spacing.lg }}>
+              <TagsSection />
+            </View>
 
             <GlassCard style={{ marginTop: spacing.lg }} variant="subtle">
               <Text style={[styles.hint, { color: tokens.textMuted }]}>

@@ -2,37 +2,33 @@
 
 > Rewritten at the end of every session. Answers: "what just happened and what do I do next?"
 
-**Last session date:** 2026-07-11 (second session that day)
+**Last session date:** 2026-07-11 (third session that day)
 
 ## What we did this session
 
-**Steps 21 and 22 built + phone-tested. Steps 1–22 all passing.**
+**Step 23 built + phone-tested. Steps 1–23 all passing.**
 
-- **Step 21** — Search modes: toggle cycles **Name / Content / Date** (content = Yassine's requested type, searches text-note bodies only; name no longer matches bodies). Date mode uses @react-native-community/datetimepicker (native picker) with start date + optional end-date range, local-calendar matching. Migrated the picker to its **v9 API** (`onValueChange`/`onDismiss`) after a deprecation warning.
-- **Step 22** — Quick filters + sort: FilterChips (Pinned amber / Long / Short emerald / per-tag violet, **fully combinable**, folder-scoped inside folders), FilteredResults view (combined label + count + Clear), SortMenu (6 options, pinned always first) applied to **every** list: filtered views, folder detail header, search results.
-- **Transition fix** — content-view swaps (normal ↔ filtered ↔ search ↔ folder) now cross-fade via an inner keyed FadeView; the SearchBar stays mounted so typing keeps the keyboard.
-- **Dev-noise cleanup** — suppressed via LogBox (documented trade-offs in `src/app/_layout.tsx`): the expo-router `useLinking` "hasn't mounted yet" error (fires only on fast refresh, stack 100% expo-router, never on cold start; already on newest expo-router 57.0.4) and draggable-flatlist's InteractionManager deprecation.
-- **ROADMAP: added Step 26.5 — Performance pass** (Yassine noticed heavy lists mount visibly slower; not a bug — every card creates a native audio player at mount + no virtualization). Fix = lazy `createAudioPlayer()` on first play + FlatList for long lists. Deliberately placed after Step 26.
+- **Step 23 — Smart folders**: `SmartFolderView` on the home tab (All / This week 7d / This month 30d / Archive — icon header, count, sort, Clear; Archive is where archived records live and get restored). `SmartViewsSection` in Settings: Archive quick-access card (live count) + All/Week/Month grid; tapping jumps to the home tab via a new cross-tab store (`src/lib/smart-folder.ts`, same pattern as active-folder). Smart views take priority over filter chips (chips hide while one is open, like the PWA); cleared by ✕, Record-tab re-tap, or picking another view.
+
+(Earlier the same day, sessions 1–2 delivered Steps 18-refinements/19/20/21/22 — see git history.)
 
 ## Decisions made
 
-- Filters combine everywhere (PWA only combined them inside folders) — strictly more powerful, simpler mental model.
-- Sort is per-list local state (folder detail, filtered, search) rather than global.
-- Perf work deferred to 26.5 by explicit agreement — current scale is fine; lands before data volume grows.
+- Smart-folder selection = module-level listenable store + `router.navigate('/')` for the Settings → home jump.
+- Archive restore needs no new UI — the Step 18 action sheet already shows "Restore from archive" for archived records.
 
 ## Files produced this session
 
-- `src/lib/sort-records.ts`, `src/components/SortMenu.tsx`, `src/components/FilterChips.tsx`, `src/components/FilteredResults.tsx`, `src/hooks/useRecordFilters.ts`
-- Updated: useSearch (modes/dates), SearchBar (mode toggle + pickers, whole-search-object API), SearchResults (mode copy + sort), FolderDetail (sort in header), format.ts (formatDateKey), index.tsx + folders.tsx (filters + inner fade), _layout.tsx (LogBox), ROADMAP.md (Step 21 done, 26.5 added)
-- New dep: @react-native-community/datetimepicker
+- `src/lib/smart-folder.ts`, `src/components/SmartFolderView.tsx`, `src/components/settings/SmartViewsSection.tsx`
+- Updated: index.tsx (smart view rendering + fade key + tab-reset), settings.tsx (SmartViewsSection mounted above TagsSection)
 
 ## Where we are on the roadmap
 
-**Steps 1–22 complete and phone-tested.** 39 steps total (25.5 Trash + 26.5 Perf added). Remaining Expo Go phase: 23, 24, 25, 25.5, 26, 26.5, 27–33; then dev build 34–37.
+**Steps 1–23 complete and phone-tested.** 39 steps total. Remaining Expo Go phase: 24, 25, 25.5 (Trash), 26, 26.5 (Perf), 27–33; then dev build 34–37.
 
 ## Single next action
 
-**Step 23 — Smart folders**: All / This week (7d) / This month (30d) / **Archive** views on the home tab (icon header, count, sort menu, Clear). Archive view is where archived records finally become visible and restorable (restore already works via the action sheet). Entries also get wired from Settings in Step 25.
+**Step 24 — Saved searches**: "Save this search" link when a search is active → name dialog capturing query + folder + tag + duration filter (storage functions `addSavedSearch`/`getSavedSearches`/`deleteSavedSearch` already exist from Step 4); saved list appears under the Recent chips in the SearchBar dropdown (load applies everything; ✕ deletes). Spec in ROADMAP Step 24.
 
 ## Open questions
 
@@ -40,4 +36,4 @@
 
 ## Notes for future Claude
 
-Yassine is a builder-type developer: ships personal tools end-to-end, iterates fast, and verifies everything **on his physical Android phone via Expo Go** before moving on — never skip that gate, build exactly one roadmap step per request, run `npx tsc --noEmit`, then STOP with phone-test instructions. He values beautiful design (the glassmorphic butterfly aesthetic matters as much as the features; missing transitions get noticed immediately) and clean, native-idiomatic code — reference the PWA in `../PWA Version` for logic/design but never copy-paste web code; he overrides PWA behavior when native UX is better. He watches the Metro terminal and reports every WARN/ERROR — always explain root cause honestly (fix ours, document+suppress upstream dev noise). His tuned constants: FadeView 600ms, long-press 200ms. Spark's users speak Tunisian Arabic; the app has no AI and is strictly local-first. Session ritual: when he says he's leaving, rewrite this handoff.md and push everything to `https://github.com/yassinemaazaoui114-git/Spark.git`. On Windows, Metro misses new directories/packages while the dev server runs — `npx expo start -c` fixes it; warn him whenever a step adds one.
+Yassine is a builder-type developer: ships personal tools end-to-end, iterates fast, and verifies everything **on his physical Android phone via Expo Go** before moving on — never skip that gate, build exactly one roadmap step per request, run `npx tsc --noEmit`, then STOP with phone-test instructions. He values beautiful design (the glassmorphic butterfly aesthetic matters as much as the features; missing transitions get noticed immediately) and clean, native-idiomatic code — reference the PWA in `../PWA Version` for logic/design but never copy-paste web code; he overrides PWA behavior when native UX is better. He watches the Metro terminal and reports every WARN/ERROR — always explain root cause honestly (fix ours, document+suppress upstream dev noise; current suppressions documented in `src/app/_layout.tsx`). His tuned constants: FadeView 600ms, long-press 200ms. Spark's users speak Tunisian Arabic; the app has no AI and is strictly local-first. Session ritual: when he says he's leaving, rewrite this handoff.md and push everything to `https://github.com/yassinemaazaoui114-git/Spark.git`. On Windows, Metro misses new directories/packages while the dev server runs — `npx expo start -c` fixes it; warn him whenever a step adds one.

@@ -14,6 +14,7 @@ import { RecordPanel } from '@/components/RecordPanel'
 import { SaveRecordingDialog } from '@/components/SaveRecordingDialog'
 import { SearchBar } from '@/components/SearchBar'
 import { SearchResults } from '@/components/SearchResults'
+import { SmartFolderView } from '@/components/SmartFolderView'
 import { TextNoteDialog } from '@/components/TextNoteDialog'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
 import { useToast } from '@/context/ToastContext'
@@ -21,6 +22,12 @@ import { useRecordFilters } from '@/hooks/useRecordFilters'
 import { useRecorder, type FinishedRecording } from '@/hooks/useRecorder'
 import { useSearch } from '@/hooks/useSearch'
 import { haptic } from '@/lib/haptics'
+import {
+  getSmartFolder,
+  onSmartFolderChange,
+  setSmartFolder,
+  type SmartFolder,
+} from '@/lib/smart-folder'
 import { onTabReset } from '@/lib/tab-events'
 import { ensureSeedFolders, getFolders } from '@/storage/folders'
 import { getRecords } from '@/storage/records'
@@ -54,6 +61,11 @@ export default function RecordScreen() {
   const search = useSearch(records, null)
   const filters = useRecordFilters(records, null)
 
+  // Smart folder view (set from Settings, rendered here)
+  const [smart, setSmart] = useState<SmartFolder | null>(getSmartFolder())
+  useEffect(() => onSmartFolderChange(setSmart), [])
+  const clearSmart = () => setSmartFolder(null)
+
   // Re-tapping the active Record tab resets to default state
   const [resetKey, setResetKey] = useState(0)
   useEffect(
@@ -61,6 +73,7 @@ export default function RecordScreen() {
       onTabReset('index', () => {
         search.reset()
         filters.reset()
+        setSmartFolder(null)
         setResetKey((k) => k + 1)
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -119,13 +132,29 @@ export default function RecordScreen() {
             {/* Search bar — visible on the home tab like the PWA */}
             <SearchBar search={search} />
 
-            {/* Inner cross-fade between the three content views */}
+            {/* Inner cross-fade between the content views */}
             <FadeView
-              key={search.active ? 'search' : filters.active ? 'filters' : 'normal'}
+              key={
+                search.active
+                  ? 'search'
+                  : smart
+                    ? `smart-${smart}`
+                    : filters.active
+                      ? 'filters'
+                      : 'normal'
+              }
               style={styles.fadeContent}
             >
             {search.active ? (
               <SearchResults search={search} folders={folders} onChanged={refreshRecords} />
+            ) : smart ? (
+              <SmartFolderView
+                smart={smart}
+                records={records}
+                folders={folders}
+                onClear={clearSmart}
+                onChanged={refreshRecords}
+              />
             ) : (
               <>
                 {/* Quick filter chips — Pinned / Long / Short / tags */}
