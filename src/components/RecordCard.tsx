@@ -141,7 +141,7 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
             setExpanded((x) => !x)
           }}
           onLongPress={openActions}
-          delayLongPress={500}
+          delayLongPress={200}
           style={styles.body}
         >
           <View style={styles.nameRow}>

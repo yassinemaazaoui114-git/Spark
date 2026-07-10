@@ -14,7 +14,9 @@ export async function shareRecord(record: VoiceRecord): Promise<string | null> {
   const name = stripStoredTimestampPrefix(record.name)
 
   if (record.type === 'text') {
-    await Clipboard.setStringAsync(`${name}\n\n${record.textContent}`)
+    // Content only — names are often auto-generated from the first line,
+    // so including them would paste that line twice (unlike the PWA).
+    await Clipboard.setStringAsync(record.textContent)
     return 'Copied to clipboard'
   }
 

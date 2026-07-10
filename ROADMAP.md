@@ -200,7 +200,7 @@ Default seeded folders: Inbox/Unsorted (`inbox`, default), Video ideas, Blog pos
 
 Each step is small and independently testable in **Expo Go** on your phone. **Prereq:** column shows which steps must be done first.
 
-> Phases: Foundation (1–5) → Recording core (6–10) → Playback & cards (11–13) → Folders & organization (14–19) → Search & filters (20–24) → Settings & polish (25–32) → Reminders (33) → Dev build & release (34–37)
+> Phases: Foundation (1–5) → Recording core (6–10) → Playback & cards (11–13) → Folders & organization (14–19) → Search & filters (20–24) → Settings & polish (25, 25.5 Trash, 26–32) → Reminders (33) → Dev build & release (34–37)
 
 ---
 
@@ -356,12 +356,15 @@ Each step is small and independently testable in **Expo Go** on your phone. **Pr
 - Results list of RecordCards with count header; empty state placeholder (illustration in step 26).
 **Testing:** search finds a record by partial name and a text note by body text; recent chips reappear after restart; searching inside a folder only returns that folder's records.
 
-### Step 21 — Date search + date range
+### Step 21 — Search modes: Content + Date (+ date range)
 **Prereq:** 20
-**Files:** `SearchBar.tsx` (mode toggle), datetimepicker integration
-- Name/Date mode toggle button; date mode opens native date picker for start date, optional end date row ("to <date>", Clear end); filters records by local calendar date range.
+**Files:** `SearchBar.tsx` (mode toggle), `useSearch.ts` (modes), datetimepicker integration
+- Mode toggle button cycles **Name / Content / Date** *(Content mode added 2026-07-11 by Yassine's request — text-note content searchable as its own type, separate from name matching)*:
+  - **Name**: matches record names only.
+  - **Content**: matches inside text-note bodies only.
+  - **Date**: native date picker for start date, optional end date row ("to <date>", Clear end); filters by local calendar date range.
 - **Web API replaced:** `<input type="date">` → @react-native-community/datetimepicker.
-**Testing:** pick today → today's records appear; set a range spanning yesterday–today → both days' records appear.
+**Testing:** name mode no longer matches note bodies; content mode finds a word that exists only inside a note's body; date mode: pick today → today's records; a range spanning yesterday–today → both days' records.
 
 ### Step 22 — Filter chips + sort menu
 **Prereq:** 20
@@ -388,6 +391,21 @@ Each step is small and independently testable in **Expo Go** on your phone. **Pr
 - Full scrollable settings tab in PWA order: privacy banner (violet, shield), stats card (summary line, opens step 28), archive card (count, jumps to Archive smart view on home), smart views 3-grid, appearance (theme + icon variant placeholders until 27/29), security placeholder (until 30), tags management (from 19), data & backup placeholder (until 31), about rows (version / storage "On-device (SQLite)" / account none).
 - Re-tapping Settings tab scrolls to top.
 **Testing:** all sections render and scroll; archive card navigates to Archive view; tag deletion works from settings.
+
+### Step 25.5 — Recently Deleted (Trash) 🗑️ *(added 2026-07-11 by Yassine's request)*
+**Prereq:** 18 (delete flow), 25 (Settings page hosts the entry card)
+**Files:** `src/storage/db.ts` (migration), `src/storage/records.ts`, `src/storage/folders.ts`, `src/types.ts`, `src/components/DeleteRecordDialog.tsx`, `src/components/FolderDetail.tsx` (folder delete), `src/components/settings/RecentlyDeletedCard.tsx`, `src/components/RecentlyDeletedView.tsx`
+- **Data model:** add `deletedAt: number | null` to `VoiceRecord` and `Folder` (null = active). SQLite migration via `PRAGMA user_version` (`ALTER TABLE records ADD COLUMN deletedAt`, same for folders — existing installs must migrate cleanly). **Every existing read adds `WHERE deletedAt IS NULL`** — since all queries go through the storage layer, search/stats/smart-folders/backup inherit the filter automatically.
+- **Behavior:**
+  - Record "Delete" → **soft delete** (`deletedAt = Date.now()`). Dialog copy becomes: *"Move to Recently Deleted? You can restore it for 30 days."* with Cancel / **Move to Trash**.
+  - Folder "Delete" → soft-deletes the folder AND all its records (sub-folders still promote to the grandparent, as today).
+  - **Restore** record → clears `deletedAt` (back to its folder). **Restore folder** → clears folder + its records.
+  - **Delete Forever** → removes row + audio file (the old hard delete). **Empty Trash** → hard-deletes everything soft-deleted.
+  - **Auto-purge on app open:** hard-delete records with `deletedAt` older than 30 days.
+- **Storage API:** `getDeletedRecords()` (sorted `deletedAt` DESC), `restoreRecord(id)`, `restoreFolder(id)`, `permanentlyDeleteRecord(id)`, `purgeOldDeleted(threshold)`.
+- **UI:** "Recently Deleted" card in Settings (Archive-card style) with "N items · auto-purged after 30 days" → opens a Recently Deleted view: rows show trash icon (instead of play/note), name, original folder, "deleted Xh ago", **Restore** (green) + **Delete Forever** (red) per row, **Empty Trash** button at top (with confirm).
+- **Archive stays separate and unchanged:** Archive = hide but keep permanently; Trash = pending deletion with a 30-day grace period.
+**Testing:** delete a record → gone from all lists but visible in Recently Deleted with correct folder + age; restore → back in its folder; Delete Forever → gone for good (audio file too); delete a folder → it and its records restorable together; Empty Trash clears everything; fake an old `deletedAt` (>30 days, via debug) → purged on next app open; archived records are unaffected by all of this.
 
 ### Step 26 — Empty states, skeletons, pull-to-refresh, offline dot
 **Prereq:** 20
@@ -537,4 +555,4 @@ Butterfly + crystal SVG paths (copied verbatim from PWA into react-native-svg): 
 
 ---
 
-*Roadmap complete — 37 steps (1–33 in Expo Go, 34–37 dev build & release). Built one step at a time; each step is tested on-phone before the next begins.*
+*Roadmap — 38 steps (1–33 incl. 25.5 in Expo Go, 34–37 dev build & release). Built one step at a time; each step is tested on-phone before the next begins.*

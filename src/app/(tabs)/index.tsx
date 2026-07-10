@@ -10,10 +10,13 @@ import { NewFolderDialog } from '@/components/NewFolderDialog'
 import { RecordCard } from '@/components/RecordCard'
 import { RecordPanel } from '@/components/RecordPanel'
 import { SaveRecordingDialog } from '@/components/SaveRecordingDialog'
+import { SearchBar } from '@/components/SearchBar'
+import { SearchResults } from '@/components/SearchResults'
 import { TextNoteDialog } from '@/components/TextNoteDialog'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
 import { useToast } from '@/context/ToastContext'
 import { useRecorder, type FinishedRecording } from '@/hooks/useRecorder'
+import { useSearch } from '@/hooks/useSearch'
 import { haptic } from '@/lib/haptics'
 import { onTabReset } from '@/lib/tab-events'
 import { ensureSeedFolders, getFolders } from '@/storage/folders'
@@ -41,9 +44,20 @@ export default function RecordScreen() {
     setFolders(await getFolders())
   }, [])
 
+  // Global name search (home is never folder-scoped)
+  const search = useSearch(records, null)
+
   // Re-tapping the active Record tab resets to default state
   const [resetKey, setResetKey] = useState(0)
-  useEffect(() => onTabReset('index', () => setResetKey((k) => k + 1)), [])
+  useEffect(
+    () =>
+      onTabReset('index', () => {
+        search.reset()
+        setResetKey((k) => k + 1)
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  )
 
   useEffect(() => {
     ;(async () => {
@@ -69,7 +83,7 @@ export default function RecordScreen() {
       <ButterflyBackground />
       <SafeAreaView style={styles.safe} edges={['top']}>
         <FadeView key={resetKey}>
-          <ScrollView contentContainerStyle={styles.content}>
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
             {/* Header */}
             <View style={styles.header}>
               <View>
@@ -94,33 +108,53 @@ export default function RecordScreen() {
               </Pressable>
             </View>
 
-            <RecordPanel
-              recorder={recorder}
-              onFinished={setPending}
-              onTypeNote={() => setShowTextNote(true)}
+            {/* Search bar — visible on the home tab like the PWA */}
+            <SearchBar
+              query={search.query}
+              onChangeQuery={search.setQuery}
+              onSubmit={(q) => search.submit(q)}
+              recents={search.recents}
+              onClearRecents={search.clearRecents}
             />
 
-            {/* Recent — last 3 non-archived records across all folders */}
-            {records.filter((r) => !r.archived).length > 0 && (
-              <GlassCard style={{ marginTop: spacing.lg }}>
-                <View style={styles.recentHeader}>
-                  <Text style={[styles.recentTitle, { color: tokens.textPrimary }]}>Recent</Text>
-                  <Clock size={16} color={tokens.textFaint} strokeWidth={2} />
-                </View>
-                <View style={styles.recentList}>
-                  {records
-                    .filter((r) => !r.archived)
-                    .slice(0, 3)
-                    .map((r) => (
-                      <RecordCard
-                        key={r.id}
-                        record={r}
-                        folderName={folders.find((f) => f.id === r.folderId)?.name || 'Unknown'}
-                        onChanged={refreshRecords}
-                      />
-                    ))}
-                </View>
-              </GlassCard>
+            {search.active ? (
+              <SearchResults
+                results={search.results}
+                query={search.query}
+                folders={folders}
+                onChanged={refreshRecords}
+              />
+            ) : (
+              <>
+                <RecordPanel
+                  recorder={recorder}
+                  onFinished={setPending}
+                  onTypeNote={() => setShowTextNote(true)}
+                />
+
+                {/* Recent — last 3 non-archived records across all folders */}
+                {records.filter((r) => !r.archived).length > 0 && (
+                  <GlassCard style={{ marginTop: spacing.lg }}>
+                    <View style={styles.recentHeader}>
+                      <Text style={[styles.recentTitle, { color: tokens.textPrimary }]}>Recent</Text>
+                      <Clock size={16} color={tokens.textFaint} strokeWidth={2} />
+                    </View>
+                    <View style={styles.recentList}>
+                      {records
+                        .filter((r) => !r.archived)
+                        .slice(0, 3)
+                        .map((r) => (
+                          <RecordCard
+                            key={r.id}
+                            record={r}
+                            folderName={folders.find((f) => f.id === r.folderId)?.name || 'Unknown'}
+                            onChanged={refreshRecords}
+                          />
+                        ))}
+                    </View>
+                  </GlassCard>
+                )}
+              </>
             )}
           </ScrollView>
         </FadeView>

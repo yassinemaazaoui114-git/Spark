@@ -7,7 +7,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
-// Cross-fade wrapper — the PWA's `.tab-content { animation: crossFade 1s }`.
+// Cross-fade wrapper — the PWA used 1s; trimmed to 0.6s on Yassine's call.
 // Fades content in every time the screen gains focus. Re-mount (key change)
 // replays the fade too, which screens use for their "active tab re-tap" reset.
 
@@ -17,7 +17,7 @@ type Props = {
   duration?: number
 }
 
-export function FadeView({ children, style, duration = 1000 }: Props) {
+export function FadeView({ children, style, duration = 600 }: Props) {
   const opacity = useSharedValue(0)
 
   useFocusEffect(

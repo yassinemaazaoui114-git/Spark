@@ -10,9 +10,12 @@ import { FolderDetail } from '@/components/FolderDetail'
 import { FolderReorderList } from '@/components/FolderReorderList'
 import { GlassCard } from '@/components/GlassCard'
 import { NewFolderDialog } from '@/components/NewFolderDialog'
+import { SearchBar } from '@/components/SearchBar'
+import { SearchResults } from '@/components/SearchResults'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
 import { folderIcon } from '@/constants/icons'
 import { useToast } from '@/context/ToastContext'
+import { useSearch } from '@/hooks/useSearch'
 import { setActiveFolderId as syncActiveFolder } from '@/lib/active-folder'
 import { haptic } from '@/lib/haptics'
 import { onTabReset } from '@/lib/tab-events'
@@ -39,6 +42,9 @@ export default function FoldersScreen() {
     syncActiveFolder(id)
   }, [])
 
+  // Name search — scoped to the open folder when inside one
+  const search = useSearch(records, activeFolderId)
+
   // Re-tap on the Folders tab → back to the folder list (PWA behavior)
   const [resetKey, setResetKey] = useState(0)
   useEffect(
@@ -47,8 +53,10 @@ export default function FoldersScreen() {
         setActiveFolderId(null)
         syncActiveFolder(null)
         setReorderMode(false)
+        search.reset()
         setResetKey((k) => k + 1)
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   )
 
@@ -108,8 +116,22 @@ export default function FoldersScreen() {
       <ButterflyBackground />
       <SafeAreaView style={styles.safe} edges={['top']}>
         <FadeView key={`${resetKey}-${activeFolderId ?? 'list'}`}>
-          <ScrollView contentContainerStyle={styles.content}>
-            {activeFolderId ? (
+          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <SearchBar
+              query={search.query}
+              onChangeQuery={search.setQuery}
+              onSubmit={(q) => search.submit(q)}
+              recents={search.recents}
+              onClearRecents={search.clearRecents}
+            />
+            {search.active ? (
+              <SearchResults
+                results={search.results}
+                query={search.query}
+                folders={folders}
+                onChanged={refresh}
+              />
+            ) : activeFolderId ? (
               <FolderDetail
                 folderId={activeFolderId}
                 folders={folders}
