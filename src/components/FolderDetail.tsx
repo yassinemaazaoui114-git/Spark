@@ -6,9 +6,11 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EditFolderDialog } from '@/components/EditFolderDialog'
 import { NewFolderDialog } from '@/components/NewFolderDialog'
 import { RecordCard } from '@/components/RecordCard'
+import { SortMenu } from '@/components/SortMenu'
 import { folderIcon } from '@/constants/icons'
 import { useToast } from '@/context/ToastContext'
 import { haptic } from '@/lib/haptics'
+import { sortRecords, type SortOption } from '@/lib/sort-records'
 import { deleteFolder } from '@/storage/folders'
 import { useTheme } from '@/theme/ThemeContext'
 import { radius, spacing } from '@/theme/tokens'
@@ -33,12 +35,16 @@ export function FolderDetail({ folderId, folders, records, onNavigate, onChanged
   const [editTarget, setEditTarget] = useState<Folder | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showNewSubFolder, setShowNewSubFolder] = useState(false)
+  const [sort, setSort] = useState<SortOption>('newest')
 
   const folder = folders.find((f) => f.id === folderId)
   if (!folder) return null
 
   const parent = folder.parentId ? folders.find((f) => f.id === folder.parentId) : null
-  const folderRecords = records.filter((r) => r.folderId === folder.id && !r.archived)
+  const folderRecords = sortRecords(
+    records.filter((r) => r.folderId === folder.id && !r.archived),
+    sort
+  )
   const subFolders = folders
     .filter((f) => f.parentId === folder.id)
     .sort((a, b) => a.order - b.order)
@@ -102,6 +108,7 @@ export function FolderDetail({ folderId, folders, records, onNavigate, onChanged
                 ` · ${subFolders.length} sub-folder${subFolders.length !== 1 ? 's' : ''}`}
             </Text>
           </View>
+          {folderRecords.length > 0 && <SortMenu value={sort} onChange={setSort} />}
           <Pressable
             onPress={() => {
               haptic('light')

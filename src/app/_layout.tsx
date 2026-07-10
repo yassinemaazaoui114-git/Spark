@@ -6,7 +6,14 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 
 // react-native-draggable-flatlist still uses the deprecated InteractionManager
 // internally — harmless, out of our control, and absent from release builds.
-LogBox.ignoreLogs(['InteractionManager has been deprecated'])
+// The "hasn't mounted yet" error comes from expo-router's useLinking initial-URL
+// promise racing fast refresh (stack is 100% expo-router; never fires on cold
+// start). Trade-off: if our own code ever causes this exact error, LogBox won't
+// show it — the terminal still logs it, so it remains discoverable there.
+LogBox.ignoreLogs([
+  'InteractionManager has been deprecated',
+  "Can't perform a React state update on a component that hasn't mounted yet",
+])
 
 import { ToastProvider } from '@/context/ToastContext'
 import { setPlaybackAudioMode } from '@/lib/audio-mode'

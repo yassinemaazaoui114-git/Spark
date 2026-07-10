@@ -200,7 +200,7 @@ Default seeded folders: Inbox/Unsorted (`inbox`, default), Video ideas, Blog pos
 
 Each step is small and independently testable in **Expo Go** on your phone. **Prereq:** column shows which steps must be done first.
 
-> Phases: Foundation (1–5) → Recording core (6–10) → Playback & cards (11–13) → Folders & organization (14–19) → Search & filters (20–24) → Settings & polish (25, 25.5 Trash, 26–32) → Reminders (33) → Dev build & release (34–37)
+> Phases: Foundation (1–5) → Recording core (6–10) → Playback & cards (11–13) → Folders & organization (14–19) → Search & filters (20–24) → Settings & polish (25, 25.5 Trash, 26, 26.5 Perf, 27–32) → Reminders (33) → Dev build & release (34–37)
 
 ---
 
@@ -416,6 +416,14 @@ Each step is small and independently testable in **Expo Go** on your phone. **Pr
 - NetInfo: green "Online" dot / dismissible amber offline banner.
 **Testing:** empty folder shows butterfly; kill+reopen app fast enough to glimpse skeletons; pull down refreshes with haptic; airplane mode shows the amber banner.
 
+### Step 26.5 — Performance pass: lazy players + list virtualization *(added 2026-07-11 — Yassine noticed heavy lists mount visibly slower)*
+**Prereq:** 26 (it reworks the same lists that get RefreshControl/skeletons there)
+**Files:** `src/hooks/usePlayer.ts`, list rendering in FolderDetail / FilteredResults / SearchResults / RecentlyDeletedView
+- **Lazy player creation** (biggest win): today every RecordCard creates a native audio player at mount even if never played — switch `usePlayer` to expo-audio's imperative `createAudioPlayer()` on first play, with manual release on unmount. Zero native players for cards that are never played.
+- **Virtualize long lists**: replace ScrollView+map with FlatList for folder detail, filtered results, and search results so only visible cards mount (Recent's 3 cards stay as-is).
+- Placed right after Step 26 so it lands before real data volume grows, and before the heavy Settings-era views (stats, trash) build on the same lists.
+**Testing:** open a folder with 30+ records → noticeably faster mount than before; scrolling stays smooth; playback, expand, action sheet, and pull-to-refresh all still work on virtualized lists; play → pause → navigate away → no crash (player release is clean).
+
 ### Step 27 — Light theme
 **Prereq:** 25
 **Files:** `src/theme/tokens.ts` (light palette), `ThemeContext`, all components via tokens
@@ -555,4 +563,4 @@ Butterfly + crystal SVG paths (copied verbatim from PWA into react-native-svg): 
 
 ---
 
-*Roadmap — 38 steps (1–33 incl. 25.5 in Expo Go, 34–37 dev build & release). Built one step at a time; each step is tested on-phone before the next begins.*
+*Roadmap — 39 steps (1–33 incl. 25.5 and 26.5 in Expo Go, 34–37 dev build & release). Built one step at a time; each step is tested on-phone before the next begins.*

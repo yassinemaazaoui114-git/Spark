@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ButterflyBackground } from '@/components/ButterflyBackground'
 import { FadeView } from '@/components/FadeView'
+import { FilterChips } from '@/components/FilterChips'
+import { FilteredResults } from '@/components/FilteredResults'
 import { GlassCard } from '@/components/GlassCard'
 import { NewFolderDialog } from '@/components/NewFolderDialog'
 import { RecordCard } from '@/components/RecordCard'
@@ -15,12 +17,14 @@ import { SearchResults } from '@/components/SearchResults'
 import { TextNoteDialog } from '@/components/TextNoteDialog'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
 import { useToast } from '@/context/ToastContext'
+import { useRecordFilters } from '@/hooks/useRecordFilters'
 import { useRecorder, type FinishedRecording } from '@/hooks/useRecorder'
 import { useSearch } from '@/hooks/useSearch'
 import { haptic } from '@/lib/haptics'
 import { onTabReset } from '@/lib/tab-events'
 import { ensureSeedFolders, getFolders } from '@/storage/folders'
 import { getRecords } from '@/storage/records'
+import { getAllTags } from '@/storage/tags'
 import { useTheme } from '@/theme/ThemeContext'
 import { spacing } from '@/theme/tokens'
 import type { Folder, VoiceRecord } from '@/types'
@@ -39,13 +43,16 @@ export default function RecordScreen() {
 
   const [records, setRecords] = useState<VoiceRecord[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
+  const [allTags, setAllTags] = useState<string[]>([])
   const refreshRecords = useCallback(async () => {
     setRecords(await getRecords())
     setFolders(await getFolders())
+    setAllTags(await getAllTags())
   }, [])
 
-  // Global name search (home is never folder-scoped)
+  // Global search + quick filters (home is never folder-scoped)
   const search = useSearch(records, null)
+  const filters = useRecordFilters(records, null)
 
   // Re-tapping the active Record tab resets to default state
   const [resetKey, setResetKey] = useState(0)
@@ -53,6 +60,7 @@ export default function RecordScreen() {
     () =>
       onTabReset('index', () => {
         search.reset()
+        filters.reset()
         setResetKey((k) => k + 1)
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -109,23 +117,30 @@ export default function RecordScreen() {
             </View>
 
             {/* Search bar — visible on the home tab like the PWA */}
-            <SearchBar
-              query={search.query}
-              onChangeQuery={search.setQuery}
-              onSubmit={(q) => search.submit(q)}
-              recents={search.recents}
-              onClearRecents={search.clearRecents}
-            />
+            <SearchBar search={search} />
 
+            {/* Inner cross-fade between the three content views */}
+            <FadeView
+              key={search.active ? 'search' : filters.active ? 'filters' : 'normal'}
+              style={styles.fadeContent}
+            >
             {search.active ? (
-              <SearchResults
-                results={search.results}
-                query={search.query}
-                folders={folders}
-                onChanged={refreshRecords}
-              />
+              <SearchResults search={search} folders={folders} onChanged={refreshRecords} />
             ) : (
               <>
+                {/* Quick filter chips — Pinned / Long / Short / tags */}
+                {records.some((r) => !r.archived) && (
+                  <FilterChips filters={filters} allTags={allTags} />
+                )}
+
+                {filters.active ? (
+                  <FilteredResults
+                    filters={filters}
+                    folders={folders}
+                    onChanged={refreshRecords}
+                  />
+                ) : (
+                  <>
                 <RecordPanel
                   recorder={recorder}
                   onFinished={setPending}
@@ -154,8 +169,11 @@ export default function RecordScreen() {
                     </View>
                   </GlassCard>
                 )}
+                  </>
+                )}
               </>
             )}
+            </FadeView>
           </ScrollView>
         </FadeView>
       </SafeAreaView>
@@ -202,6 +220,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: TAB_BAR_SPACE,
+  },
+  fadeContent: {
+    flex: 0,
   },
   header: {
     flexDirection: 'row',

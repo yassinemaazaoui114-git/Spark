@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ButterflyBackground } from '@/components/ButterflyBackground'
 import { FadeView } from '@/components/FadeView'
+import { FilterChips } from '@/components/FilterChips'
+import { FilteredResults } from '@/components/FilteredResults'
 import { FolderDetail } from '@/components/FolderDetail'
 import { FolderReorderList } from '@/components/FolderReorderList'
 import { GlassCard } from '@/components/GlassCard'
@@ -15,12 +17,14 @@ import { SearchResults } from '@/components/SearchResults'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
 import { folderIcon } from '@/constants/icons'
 import { useToast } from '@/context/ToastContext'
+import { useRecordFilters } from '@/hooks/useRecordFilters'
 import { useSearch } from '@/hooks/useSearch'
 import { setActiveFolderId as syncActiveFolder } from '@/lib/active-folder'
 import { haptic } from '@/lib/haptics'
 import { onTabReset } from '@/lib/tab-events'
 import { getFolders, saveFolderOrder } from '@/storage/folders'
 import { getRecords } from '@/storage/records'
+import { getAllTags } from '@/storage/tags'
 import { useTheme } from '@/theme/ThemeContext'
 import { radius, spacing } from '@/theme/tokens'
 import type { Folder, VoiceRecord } from '@/types'
@@ -42,8 +46,10 @@ export default function FoldersScreen() {
     syncActiveFolder(id)
   }, [])
 
-  // Name search — scoped to the open folder when inside one
+  // Search + quick filters — scoped to the open folder when inside one
   const search = useSearch(records, activeFolderId)
+  const [allTags, setAllTags] = useState<string[]>([])
+  const filters = useRecordFilters(records, activeFolderId)
 
   // Re-tap on the Folders tab → back to the folder list (PWA behavior)
   const [resetKey, setResetKey] = useState(0)
@@ -54,6 +60,7 @@ export default function FoldersScreen() {
         syncActiveFolder(null)
         setReorderMode(false)
         search.reset()
+        filters.reset()
         setResetKey((k) => k + 1)
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,6 +70,7 @@ export default function FoldersScreen() {
   const refresh = useCallback(async () => {
     setFolders(await getFolders())
     setRecords(await getRecords())
+    setAllTags(await getAllTags())
   }, [])
 
   // Reload whenever the tab gains focus — records/folders may have changed
@@ -115,30 +123,38 @@ export default function FoldersScreen() {
     <View style={styles.root}>
       <ButterflyBackground />
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <FadeView key={`${resetKey}-${activeFolderId ?? 'list'}`}>
+        <FadeView key={resetKey}>
           <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <SearchBar
-              query={search.query}
-              onChangeQuery={search.setQuery}
-              onSubmit={(q) => search.submit(q)}
-              recents={search.recents}
-              onClearRecents={search.clearRecents}
-            />
+            <SearchBar search={search} />
+            {/* Inner cross-fade between views (search / filters / folder / list) */}
+            <FadeView
+              key={
+                search.active
+                  ? 'search'
+                  : filters.active
+                    ? 'filters'
+                    : (activeFolderId ?? 'list')
+              }
+              style={styles.fadeContent}
+            >
             {search.active ? (
-              <SearchResults
-                results={search.results}
-                query={search.query}
-                folders={folders}
-                onChanged={refresh}
-              />
+              <SearchResults search={search} folders={folders} onChanged={refresh} />
+            ) : filters.active ? (
+              <>
+                <FilterChips filters={filters} allTags={allTags} />
+                <FilteredResults filters={filters} folders={folders} onChanged={refresh} />
+              </>
             ) : activeFolderId ? (
-              <FolderDetail
-                folderId={activeFolderId}
-                folders={folders}
-                records={records}
-                onNavigate={openFolder}
-                onChanged={refresh}
-              />
+              <>
+                <FilterChips filters={filters} allTags={allTags} />
+                <FolderDetail
+                  folderId={activeFolderId}
+                  folders={folders}
+                  records={records}
+                  onNavigate={openFolder}
+                  onChanged={refresh}
+                />
+              </>
             ) : (
             <GlassCard>
               <View style={styles.listHeader}>
@@ -232,6 +248,7 @@ export default function FoldersScreen() {
               </View>
             </GlassCard>
             )}
+            </FadeView>
           </ScrollView>
         </FadeView>
       </SafeAreaView>
@@ -265,6 +282,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: TAB_BAR_SPACE,
+  },
+  fadeContent: {
+    flex: 0,
   },
   listHeader: {
     flexDirection: 'row',
