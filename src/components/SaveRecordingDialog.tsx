@@ -8,6 +8,7 @@ import { GlassDialog } from '@/components/GlassDialog'
 import { TagInput } from '@/components/TagInput'
 import { useToast } from '@/context/ToastContext'
 import type { FinishedRecording } from '@/hooks/useRecorder'
+import { getActiveFolderId } from '@/lib/active-folder'
 import { haptic } from '@/lib/haptics'
 import { deleteRecordingFile, persistRecording } from '@/storage/files'
 import { getFolders } from '@/storage/folders'
@@ -23,25 +24,18 @@ import type { Folder } from '@/types'
 
 type Props = {
   pending: FinishedRecording | null
-  defaultFolderId?: string
   onSaved: () => void
   onDiscarded: () => void
   onReRecord: () => void
 }
 
-export function SaveRecordingDialog({
-  pending,
-  defaultFolderId = 'inbox',
-  onSaved,
-  onDiscarded,
-  onReRecord,
-}: Props) {
+export function SaveRecordingDialog({ pending, onSaved, onDiscarded, onReRecord }: Props) {
   const { tokens } = useTheme()
   const { showToast } = useToast()
 
   const [name, setName] = useState('')
   const [tags, setTags] = useState<string[]>([])
-  const [folderId, setFolderId] = useState(defaultFolderId)
+  const [folderId, setFolderId] = useState('inbox')
   const [folders, setFolders] = useState<Folder[]>([])
   const [allTags, setAllTags] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
@@ -52,10 +46,11 @@ export function SaveRecordingDialog({
 
   useEffect(() => {
     if (!pending) return
-    // Fresh dialog state per recording
+    // Fresh dialog state per recording — default into the currently open
+    // folder (PWA: pendingFolderId = activeFolderId || 'inbox')
     setName('')
     setTags([])
-    setFolderId(defaultFolderId)
+    setFolderId(getActiveFolderId() ?? 'inbox')
     setSaving(false)
     player.replace(pending.uri)
     ;(async () => {

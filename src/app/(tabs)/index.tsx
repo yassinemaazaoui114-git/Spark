@@ -116,6 +116,7 @@ export default function RecordScreen() {
                         key={r.id}
                         record={r}
                         folderName={folders.find((f) => f.id === r.folderId)?.name || 'Unknown'}
+                        onChanged={refreshRecords}
                       />
                     ))}
                 </View>

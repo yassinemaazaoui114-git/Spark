@@ -1,19 +1,22 @@
 import { useFocusEffect } from 'expo-router'
-import { Plus } from 'lucide-react-native'
+import { ArrowDownUp, Plus } from 'lucide-react-native'
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ButterflyBackground } from '@/components/ButterflyBackground'
 import { FadeView } from '@/components/FadeView'
+import { FolderDetail } from '@/components/FolderDetail'
+import { FolderReorderList } from '@/components/FolderReorderList'
 import { GlassCard } from '@/components/GlassCard'
 import { NewFolderDialog } from '@/components/NewFolderDialog'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
 import { folderIcon } from '@/constants/icons'
 import { useToast } from '@/context/ToastContext'
+import { setActiveFolderId as syncActiveFolder } from '@/lib/active-folder'
 import { haptic } from '@/lib/haptics'
 import { onTabReset } from '@/lib/tab-events'
-import { getFolders } from '@/storage/folders'
+import { getFolders, saveFolderOrder } from '@/storage/folders'
 import { getRecords } from '@/storage/records'
 import { useTheme } from '@/theme/ThemeContext'
 import { radius, spacing } from '@/theme/tokens'
@@ -26,9 +29,28 @@ export default function FoldersScreen() {
   const [folders, setFolders] = useState<Folder[]>([])
   const [records, setRecords] = useState<VoiceRecord[]>([])
   const [showNewFolder, setShowNewFolder] = useState(false)
+  const [reorderMode, setReorderMode] = useState(false)
 
+  // Currently open folder (null = list). Mirrored into the module store so
+  // the Record tab's save dialogs default new notes into this folder.
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(null)
+  const openFolder = useCallback((id: string | null) => {
+    setActiveFolderId(id)
+    syncActiveFolder(id)
+  }, [])
+
+  // Re-tap on the Folders tab → back to the folder list (PWA behavior)
   const [resetKey, setResetKey] = useState(0)
-  useEffect(() => onTabReset('folders', () => setResetKey((k) => k + 1)), [])
+  useEffect(
+    () =>
+      onTabReset('folders', () => {
+        setActiveFolderId(null)
+        syncActiveFolder(null)
+        setReorderMode(false)
+        setResetKey((k) => k + 1)
+      }),
+    []
+  )
 
   const refresh = useCallback(async () => {
     setFolders(await getFolders())
@@ -44,17 +66,80 @@ export default function FoldersScreen() {
 
   const countByFolder = (folderId: string) =>
     records.filter((r) => r.folderId === folderId && !r.archived).length
+  const subCountByFolder = (folderId: string) =>
+    folders.filter((f) => f.parentId === folderId).length
 
   const topLevel = folders.filter((f) => !f.parentId).sort((a, b) => a.order - b.order)
+
+  const handleSaveOrder = async (orderedIds: string[]) => {
+    await saveFolderOrder(orderedIds)
+    await refresh()
+    haptic('success')
+    showToast('Folder order saved')
+    setReorderMode(false)
+  }
+
+  // Reorder mode replaces the ScrollView — DraggableFlatList is its own list
+  if (reorderMode) {
+    return (
+      <View style={styles.root}>
+        <ButterflyBackground />
+        <SafeAreaView style={styles.safe} edges={['top']}>
+          <View style={styles.reorderContent}>
+            <FolderReorderList
+              folders={topLevel}
+              countByFolder={countByFolder}
+              subCountByFolder={subCountByFolder}
+              onSave={handleSaveOrder}
+              onCancel={() => setReorderMode(false)}
+              onOpen={(id) => {
+                setReorderMode(false)
+                openFolder(id)
+              }}
+            />
+          </View>
+        </SafeAreaView>
+      </View>
+    )
+  }
 
   return (
     <View style={styles.root}>
       <ButterflyBackground />
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <FadeView key={resetKey}>
+        <FadeView key={`${resetKey}-${activeFolderId ?? 'list'}`}>
           <ScrollView contentContainerStyle={styles.content}>
+            {activeFolderId ? (
+              <FolderDetail
+                folderId={activeFolderId}
+                folders={folders}
+                records={records}
+                onNavigate={openFolder}
+                onChanged={refresh}
+              />
+            ) : (
             <GlassCard>
-              <Text style={[styles.title, { color: tokens.textPrimary }]}>Folders</Text>
+              <View style={styles.listHeader}>
+                <Text style={[styles.title, { color: tokens.textPrimary }]}>Folders</Text>
+                {topLevel.length > 1 && (
+                  <Pressable
+                    onPress={() => {
+                      haptic('light')
+                      setReorderMode(true)
+                    }}
+                    hitSlop={6}
+                    style={({ pressed }) => [
+                      styles.reorderBtn,
+                      { backgroundColor: pressed ? tokens.surfaceStrong : tokens.surfaceSubtle },
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Reorder folders"
+                  >
+                    <ArrowDownUp size={14} color={tokens.textMuted} strokeWidth={2} />
+                    <Text style={[styles.reorderText, { color: tokens.textMuted }]}>Reorder</Text>
+                  </Pressable>
+                )}
+              </View>
 
               <View style={styles.list}>
                 {topLevel.map((f) => {
@@ -66,7 +151,7 @@ export default function FoldersScreen() {
                       key={f.id}
                       onPress={() => {
                         haptic('light')
-                        showToast('Folder view arrives in Step 15')
+                        openFolder(f.id)
                       }}
                       style={({ pressed }) => [
                         styles.folderRow,
@@ -124,6 +209,7 @@ export default function FoldersScreen() {
                 </Pressable>
               </View>
             </GlassCard>
+            )}
           </ScrollView>
         </FadeView>
       </SafeAreaView>
@@ -152,10 +238,32 @@ const styles = StyleSheet.create({
     paddingTop: spacing.sm,
     paddingBottom: TAB_BAR_SPACE,
   },
+  reorderContent: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: TAB_BAR_SPACE,
+  },
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
   title: {
     fontSize: 20,
     fontWeight: '600',
-    marginBottom: spacing.lg,
+  },
+  reorderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.full,
+  },
+  reorderText: {
+    fontSize: 11,
   },
   list: {
     gap: spacing.sm,

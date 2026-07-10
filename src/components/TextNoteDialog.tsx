@@ -6,6 +6,7 @@ import { FolderPickerList } from '@/components/FolderPickerList'
 import { GlassDialog } from '@/components/GlassDialog'
 import { TagInput } from '@/components/TagInput'
 import { useToast } from '@/context/ToastContext'
+import { getActiveFolderId } from '@/lib/active-folder'
 import { haptic } from '@/lib/haptics'
 import { getFolders } from '@/storage/folders'
 import { uid } from '@/storage/format'
@@ -20,19 +21,18 @@ import type { Folder } from '@/types'
 
 type Props = {
   visible: boolean
-  defaultFolderId?: string
   onClose: () => void
   onSaved: () => void
 }
 
-export function TextNoteDialog({ visible, defaultFolderId = 'inbox', onClose, onSaved }: Props) {
+export function TextNoteDialog({ visible, onClose, onSaved }: Props) {
   const { tokens } = useTheme()
   const { showToast } = useToast()
 
   const [content, setContent] = useState('')
   const [name, setName] = useState('')
   const [tags, setTags] = useState<string[]>([])
-  const [folderId, setFolderId] = useState(defaultFolderId)
+  const [folderId, setFolderId] = useState('inbox')
   const [folders, setFolders] = useState<Folder[]>([])
   const [allTags, setAllTags] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
@@ -43,7 +43,7 @@ export function TextNoteDialog({ visible, defaultFolderId = 'inbox', onClose, on
     setContent('')
     setName('')
     setTags([])
-    setFolderId(defaultFolderId)
+    setFolderId(getActiveFolderId() ?? 'inbox')
     setSaving(false)
     ;(async () => {
       setFolders(await getFolders())

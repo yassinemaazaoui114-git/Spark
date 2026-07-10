@@ -1,3 +1,4 @@
+import { Folder as FolderIcon } from 'lucide-react-native'
 import { useEffect, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
@@ -14,8 +15,8 @@ import { radius, spacing } from '@/theme/tokens'
 import type { Folder } from '@/types'
 
 // "New folder" dialog (PWA port) — name, 26-icon picker, 10-color picker,
-// optional parent folder. Step 16 opens it with a locked parent for
-// "Add sub-folder".
+// optional parent folder. When opened via "Add sub-folder" the parent is
+// locked to an info box with a "Change" link that reveals the full picker.
 
 type Props = {
   visible: boolean
@@ -32,6 +33,7 @@ export function NewFolderDialog({ visible, defaultParentId = null, onClose, onCr
   const [icon, setIcon] = useState('Folder')
   const [color, setColor] = useState('#8b5cf6')
   const [parentId, setParentId] = useState<string | null>(defaultParentId)
+  const [parentLocked, setParentLocked] = useState(false)
   const [folders, setFolders] = useState<Folder[]>([])
   const [saving, setSaving] = useState(false)
 
@@ -41,6 +43,7 @@ export function NewFolderDialog({ visible, defaultParentId = null, onClose, onCr
     setIcon('Folder')
     setColor('#8b5cf6')
     setParentId(defaultParentId)
+    setParentLocked(defaultParentId != null)
     setSaving(false)
     ;(async () => setFolders(await getFolders()))()
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,15 +130,33 @@ export function NewFolderDialog({ visible, defaultParentId = null, onClose, onCr
       </View>
 
       <View style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: tokens.textMuted }]}>
-          Parent folder (optional)
-        </Text>
-        <FolderPickerList
-          folders={folders}
-          selectedId={parentId}
-          onSelect={setParentId}
-          noneLabel="Top level (no parent)"
-        />
+        {parentLocked ? (
+          /* Locked parent info box — "Add sub-folder" flow */
+          <View style={styles.lockedParent}>
+            <FolderIcon size={16} color="#c4b5fd" strokeWidth={2} />
+            <Text style={[styles.lockedParentText, { color: 'rgba(237,233,254,0.8)' }]}>
+              Will be created inside{' '}
+              <Text style={styles.lockedParentName}>
+                {folders.find((f) => f.id === parentId)?.name || 'this folder'}
+              </Text>
+            </Text>
+            <Pressable onPress={() => setParentLocked(false)} hitSlop={6}>
+              <Text style={styles.changeLink}>Change</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <>
+            <Text style={[styles.sectionLabel, { color: tokens.textMuted }]}>
+              Parent folder (optional)
+            </Text>
+            <FolderPickerList
+              folders={folders}
+              selectedId={parentId}
+              onSelect={setParentId}
+              noneLabel="Top level (no parent)"
+            />
+          </>
+        )}
       </View>
     </GlassDialog>
   )
@@ -155,6 +176,29 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 12,
     marginBottom: spacing.sm,
+  },
+  lockedParent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(139,92,246,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(167,139,250,0.3)',
+  },
+  lockedParentText: {
+    flex: 1,
+    fontSize: 12,
+  },
+  lockedParentName: {
+    fontWeight: '600',
+    color: '#ede9fe',
+  },
+  changeLink: {
+    fontSize: 12,
+    color: 'rgba(221,214,254,0.6)',
+    textDecorationLine: 'underline',
   },
   ghostBtn: {
     paddingHorizontal: spacing.lg,

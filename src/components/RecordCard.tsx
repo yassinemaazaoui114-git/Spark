@@ -15,31 +15,74 @@ import {
 import { useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
+import { DeleteRecordDialog } from '@/components/DeleteRecordDialog'
+import { MoveRecordDialog } from '@/components/MoveRecordDialog'
+import { RecordActionSheet } from '@/components/RecordActionSheet'
+import { RenameRecordDialog } from '@/components/RenameRecordDialog'
 import { useToast } from '@/context/ToastContext'
 import { usePlayer } from '@/hooks/usePlayer'
 import { haptic } from '@/lib/haptics'
+import { shareRecord } from '@/lib/share-record'
 import {
   formatDuration,
   formatRelativeTime,
   formatTimestamp,
   stripStoredTimestampPrefix,
 } from '@/storage/format'
+import { saveRecord } from '@/storage/records'
 import { useTheme } from '@/theme/ThemeContext'
 import { accent, radius, spacing } from '@/theme/tokens'
 import type { VoiceRecord } from '@/types'
 
 // One record row — the heart of every list in the app (PWA RecordCard).
-// Playback (Step 12) lives here; the long-press action sheet lands in Step 18.
+// Owns playback, the long-press action sheet, and the record dialogs;
+// parents pass onChanged to refresh their lists after a mutation.
 
 type Props = {
   record: VoiceRecord
   folderName?: string
+  onChanged?: () => void
 }
 
-export function RecordCard({ record, folderName }: Props) {
+export function RecordCard({ record, folderName, onChanged }: Props) {
   const { tokens } = useTheme()
   const { showToast } = useToast()
   const [expanded, setExpanded] = useState(false)
+
+  // Action sheet + dialogs
+  const [showActions, setShowActions] = useState(false)
+  const [showMove, setShowMove] = useState(false)
+  const [showRename, setShowRename] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+
+  const openActions = () => {
+    haptic('medium')
+    setShowActions(true)
+  }
+
+  const changed = () => onChanged?.()
+
+  const handleTogglePin = async () => {
+    await saveRecord({ ...record, pinned: !record.pinned })
+    haptic('light')
+    showToast(record.pinned ? 'Unpinned' : 'Pinned to top')
+    changed()
+  }
+
+  const handleToggleArchive = async () => {
+    await saveRecord({ ...record, archived: !record.archived })
+    haptic('light')
+    showToast(record.archived ? 'Restored from archive' : 'Archived')
+    changed()
+  }
+
+  const handleShare = async () => {
+    const msg = await shareRecord(record)
+    if (msg) {
+      haptic('light')
+      showToast(msg)
+    }
+  }
 
   const isTextNote = record.type === 'text'
   const name = stripStoredTimestampPrefix(record.name)
@@ -97,10 +140,7 @@ export function RecordCard({ record, folderName }: Props) {
           onPress={() => {
             setExpanded((x) => !x)
           }}
-          onLongPress={() => {
-            haptic('medium')
-            showToast('Actions arrive in Step 18')
-          }}
+          onLongPress={openActions}
           delayLongPress={500}
           style={styles.body}
         >
@@ -135,12 +175,9 @@ export function RecordCard({ record, folderName }: Props) {
           )}
         </Pressable>
 
-        {/* More button — action sheet in Step 18 */}
+        {/* More button — opens the action sheet */}
         <Pressable
-          onPress={() => {
-            haptic('light')
-            showToast('Actions arrive in Step 18')
-          }}
+          onPress={openActions}
           hitSlop={8}
           style={styles.moreBtn}
           accessibilityRole="button"
@@ -260,7 +297,7 @@ export function RecordCard({ record, folderName }: Props) {
                 </Pressable>
 
                 <Pressable
-                  onPress={() => showToast('Share arrives in Step 18')}
+                  onPress={handleShare}
                   style={({ pressed }) => [
                     styles.pillBtn,
                     { backgroundColor: pressed ? tokens.surfaceStrong : tokens.surface },
@@ -276,6 +313,47 @@ export function RecordCard({ record, folderName }: Props) {
           )}
         </View>
       )}
+
+      {/* Action sheet + dialogs */}
+      <RecordActionSheet
+        record={record}
+        visible={showActions}
+        onClose={() => setShowActions(false)}
+        onPin={handleTogglePin}
+        onRename={() => setShowRename(true)}
+        onMove={() => setShowMove(true)}
+        onShare={handleShare}
+        onTrim={() => showToast('Trim arrives in Step 32')}
+        onArchive={handleToggleArchive}
+        onDelete={() => setShowDelete(true)}
+      />
+
+      <MoveRecordDialog
+        record={showMove ? record : null}
+        onClose={() => setShowMove(false)}
+        onMoved={() => {
+          setShowMove(false)
+          changed()
+        }}
+      />
+
+      <RenameRecordDialog
+        record={showRename ? record : null}
+        onClose={() => setShowRename(false)}
+        onSaved={() => {
+          setShowRename(false)
+          changed()
+        }}
+      />
+
+      <DeleteRecordDialog
+        record={showDelete ? record : null}
+        onClose={() => setShowDelete(false)}
+        onDeleted={() => {
+          setShowDelete(false)
+          changed()
+        }}
+      />
     </View>
   )
 }

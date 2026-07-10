@@ -1,6 +1,12 @@
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect } from 'react'
+import { LogBox } from 'react-native'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
+
+// react-native-draggable-flatlist still uses the deprecated InteractionManager
+// internally — harmless, out of our control, and absent from release builds.
+LogBox.ignoreLogs(['InteractionManager has been deprecated'])
 
 import { ToastProvider } from '@/context/ToastContext'
 import { setPlaybackAudioMode } from '@/lib/audio-mode'
@@ -28,10 +34,12 @@ export default function RootLayout() {
   }, [])
 
   return (
-    <ThemeProvider>
-      <ToastProvider>
-        <AppStack />
-      </ToastProvider>
-    </ThemeProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <ToastProvider>
+          <AppStack />
+        </ToastProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   )
 }

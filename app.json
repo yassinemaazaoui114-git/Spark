@@ -46,7 +46,8 @@
           "microphonePermission": "Allow Spark to access your microphone to record voice notes.",
           "enableBackgroundPlayback": true
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,
