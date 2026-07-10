@@ -1,7 +1,9 @@
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import { useEffect } from 'react'
 
 import { ToastProvider } from '@/context/ToastContext'
+import { setPlaybackAudioMode } from '@/lib/audio-mode'
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext'
 
 function AppStack() {
@@ -20,6 +22,11 @@ function AppStack() {
 }
 
 export default function RootLayout() {
+  // App-wide audio session: silent-switch playback + background playback
+  useEffect(() => {
+    setPlaybackAudioMode()
+  }, [])
+
   return (
     <ThemeProvider>
       <ToastProvider>

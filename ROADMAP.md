@@ -462,11 +462,12 @@ Each step is small and independently testable in **Expo Go** on your phone. **Pr
 - Create a development build with `eas build --profile development` (Android APK), install it on the phone. From here on it replaces Expo Go: same QR/hot-reload workflow, but it can host custom native modules.
 **Testing:** install the dev build APK, connect with `npx expo start --dev-client`, and verify **all features from steps 1–33 still work** (record, playback, biometrics, notifications, backup).
 
-### Step 35 — react-native-track-player swap (lock-screen media controls)
+### Step 35 — lock-screen media controls
 **Prereq:** 34
-**Files:** `src/hooks/usePlayer.ts`, `src/lib/playback-manager.ts` (engine swap only — no UI changes)
-- Replace the expo-av/expo-audio playback engine behind the `usePlayer` hook with **react-native-track-player**: rich lock-screen / notification media controls (play/pause, seek, ±5s, metadata + artwork), matching the PWA's Media Session behavior.
-**Testing:** play a record, lock the phone → media notification shows record name + controls; pause/seek from the lock screen works; speed control and trim-range playback still behave.
+**Files:** `src/hooks/usePlayer.ts` (flip the `LOCK_SCREEN_SUPPORTED` gate), possibly nothing else
+- **Finding from Step 13:** expo-audio's `setActiveForLockScreen(true, metadata)` is already wired into `usePlayer` with the PWA's Media Session metadata (record name / Spark / folder), but it requires the native `AudioControlsService` that only exists in a dev/production build (config plugin `enableBackgroundPlayback: true` is already set in app.json). The call is gated off in Expo Go because it logs a native "service binding failed" error there.
+- In the Step 34 dev build, verify the media notification + lock-screen controls simply work via expo-audio. Only if they prove insufficient (missing seek/±5s buttons, flaky metadata), fall back to swapping the engine for **react-native-track-player** behind the `usePlayer` hook.
+**Testing:** play a record in the dev build, lock the phone → media notification shows the record name + "Spark" + controls; pause from the lock screen works; playback survives >3 min backgrounded on Android.
 
 ### Step 36 — expo-alternate-app-icons (real icon switching)
 **Prereq:** 34
