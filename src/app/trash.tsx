@@ -34,7 +34,7 @@ import type { Folder, VoiceRecord } from '@/types'
 // Restore / Delete Forever per row and Empty Trash at the top.
 
 export default function TrashScreen() {
-  const { tokens } = useTheme()
+  const { theme, tokens } = useTheme()
   const { showToast } = useToast()
   const router = useRouter()
 
@@ -243,9 +243,13 @@ export default function TrashScreen() {
                         key={r.id}
                         icon={
                           r.type === 'text' ? (
-                            <PenLine size={16} color="#93c5fd" strokeWidth={2} />
+                            <PenLine size={16} color={tokens.blueIcon} strokeWidth={2} />
                           ) : (
-                            <Trash2 size={16} color="#fca5a5" strokeWidth={2} />
+                            <Trash2
+                              size={16}
+                              color={theme === 'light' ? '#dc2626' : '#fca5a5'}
+                              strokeWidth={2}
+                            />
                           )
                         }
                         iconBg={
@@ -404,7 +408,7 @@ function TrashRow({
       style={[
         styles.row,
         selected
-          ? styles.rowSelected
+          ? { backgroundColor: tokens.accentTint, borderColor: tokens.accentBorder }
           : { backgroundColor: tokens.surfaceSubtle, borderColor: tokens.border },
       ]}
     >
@@ -570,10 +574,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  rowSelected: {
-    backgroundColor: 'rgba(139,92,246,0.15)',
-    borderColor: 'rgba(167,139,250,0.4)',
   },
   rowBody: {
     flex: 1,

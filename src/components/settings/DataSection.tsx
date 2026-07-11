@@ -44,8 +44,8 @@ export function DataSection({ recordCount, folderCount, tagCount }: Props) {
             accessibilityRole="button"
             accessibilityLabel="Export backup"
           >
-            <Download size={14} color="#ddd6fe" strokeWidth={2} />
-            <Text style={styles.exportText}>Export</Text>
+            <Download size={14} color={tokens.accentIconSoft} strokeWidth={2} />
+            <Text style={[styles.exportText, { color: tokens.accentIconSoft }]}>Export</Text>
           </Pressable>
           <Pressable
             onPress={placeholder}
@@ -109,7 +109,6 @@ const styles = StyleSheet.create({
   },
   exportText: {
     fontSize: 13,
-    color: '#ddd6fe',
   },
   importBtn: {
     flex: 1,

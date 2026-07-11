@@ -48,11 +48,13 @@ export function ConfirmDialog({
             onPress={onConfirm}
             style={({ pressed }) => [
               styles.confirmBtn,
-              { backgroundColor: destructive ? '#dc2626' : '#ffffff' },
+              { backgroundColor: destructive ? '#dc2626' : tokens.primaryBtnBg },
               pressed && { opacity: 0.85 },
             ]}
           >
-            <Text style={[styles.confirmText, { color: destructive ? '#ffffff' : '#18181b' }]}>
+            <Text
+              style={[styles.confirmText, { color: destructive ? '#ffffff' : tokens.primaryBtnText }]}
+            >
               {confirmLabel}
             </Text>
           </Pressable>

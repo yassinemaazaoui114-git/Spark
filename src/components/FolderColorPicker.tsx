@@ -30,7 +30,9 @@ export function FolderColorPicker({ value, onChange }: Props) {
               style={[
                 styles.swatch,
                 { backgroundColor: c },
-                selected ? styles.swatchSelected : { borderColor: 'rgba(255,255,255,0.2)' },
+                selected
+                  ? [styles.swatchSelected, { borderColor: tokens.textPrimary }]
+                  : { borderColor: tokens.borderStrong },
               ]}
               accessibilityRole="radio"
               accessibilityState={{ selected }}
@@ -64,7 +66,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   swatchSelected: {
-    borderColor: '#ffffff',
     transform: [{ scale: 1.1 }],
   },
 })

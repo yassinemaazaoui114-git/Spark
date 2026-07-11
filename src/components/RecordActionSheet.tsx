@@ -61,19 +61,27 @@ export function RecordActionSheet({
   onDelete,
   onSelect,
 }: Props) {
-  const { tokens } = useTheme()
+  const { theme, tokens } = useTheme()
   const insets = useSafeAreaInsets()
 
   if (!record) return null
   const isTextNote = record.type === 'text'
+
+  // Icon colors: pale -300 shades on the dark sheet, deep -600/700 on white
+  const light = theme === 'light'
+  const amberIcon = light ? '#b45309' : '#fcd34d'
+  const emeraldIcon = light ? '#047857' : '#6ee7b7'
+  const fuchsiaIcon = light ? '#a21caf' : '#f0abfc'
+  const zincIcon = light ? '#52525b' : '#d4d4d8'
+  const redIcon = light ? '#dc2626' : '#f87171'
 
   const actions: ActionRow[] = [
     {
       key: 'select',
       label: 'Select',
       Icon: CheckSquare,
-      chipColor: 'rgba(139,92,246,0.15)',
-      iconColor: '#c4b5fd',
+      chipColor: tokens.accentTint,
+      iconColor: tokens.accentIcon,
       onPress: onSelect,
     },
     {
@@ -81,7 +89,7 @@ export function RecordActionSheet({
       label: record.pinned ? 'Unpin from top' : 'Pin to top',
       Icon: record.pinned ? PinOff : Pin,
       chipColor: 'rgba(245,158,11,0.15)',
-      iconColor: '#fcd34d',
+      iconColor: amberIcon,
       onPress: onPin,
     },
     {
@@ -89,15 +97,15 @@ export function RecordActionSheet({
       label: 'Rename / edit tags',
       Icon: Pencil,
       chipColor: 'rgba(59,130,246,0.15)',
-      iconColor: '#93c5fd',
+      iconColor: tokens.blueIcon,
       onPress: onRename,
     },
     {
       key: 'move',
       label: 'Move to folder',
       Icon: FolderIcon,
-      chipColor: 'rgba(139,92,246,0.15)',
-      iconColor: '#c4b5fd',
+      chipColor: tokens.accentTint,
+      iconColor: tokens.accentIcon,
       onPress: onMove,
     },
     {
@@ -105,7 +113,7 @@ export function RecordActionSheet({
       label: isTextNote ? 'Copy text' : 'Share audio',
       Icon: Share2,
       chipColor: 'rgba(16,185,129,0.15)',
-      iconColor: '#6ee7b7',
+      iconColor: emeraldIcon,
       onPress: onShare,
     },
     ...(!isTextNote
@@ -115,7 +123,7 @@ export function RecordActionSheet({
             label: 'Trim audio',
             Icon: Scissors,
             chipColor: 'rgba(217,70,239,0.15)',
-            iconColor: '#f0abfc',
+            iconColor: fuchsiaIcon,
             onPress: onTrim,
           } satisfies ActionRow,
         ]
@@ -125,7 +133,7 @@ export function RecordActionSheet({
       label: record.archived ? 'Restore from archive' : 'Archive',
       Icon: record.archived ? ArchiveRestore : Archive,
       chipColor: 'rgba(113,113,122,0.15)',
-      iconColor: record.archived ? '#6ee7b7' : '#d4d4d8',
+      iconColor: record.archived ? emeraldIcon : zincIcon,
       onPress: onArchive,
     },
     {
@@ -133,7 +141,7 @@ export function RecordActionSheet({
       label: 'Delete',
       Icon: Trash2,
       chipColor: 'rgba(239,68,68,0.15)',
-      iconColor: '#f87171',
+      iconColor: redIcon,
       danger: true,
       onPress: onDelete,
     },
@@ -154,15 +162,15 @@ export function RecordActionSheet({
           ]}
         >
           {/* Drag handle */}
-          <View style={styles.handle} />
+          <View style={[styles.handle, { backgroundColor: tokens.borderStrong }]} />
 
           {/* Record header */}
           <View style={[styles.header, { borderBottomColor: tokens.border }]}>
-            <View style={[styles.headerIcon, { backgroundColor: 'rgba(139,92,246,0.2)' }]}>
+            <View style={[styles.headerIcon, { backgroundColor: tokens.accentTint }]}>
               {isTextNote ? (
-                <PenLine size={16} color="#c4b5fd" strokeWidth={2} />
+                <PenLine size={16} color={tokens.accentIcon} strokeWidth={2} />
               ) : (
-                <Mic size={16} color="#c4b5fd" strokeWidth={2} />
+                <Mic size={16} color={tokens.accentIcon} strokeWidth={2} />
               )}
             </View>
             <View style={styles.headerBody}>
@@ -208,7 +216,7 @@ export function RecordActionSheet({
                 <Text
                   style={[
                     styles.actionLabel,
-                    { color: a.danger ? '#fca5a5' : tokens.textPrimary },
+                    { color: a.danger ? redIcon : tokens.textPrimary },
                   ]}
                 >
                   {a.label}
@@ -262,7 +270,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.2)',
     alignSelf: 'center',
     marginBottom: spacing.lg,
   },

@@ -8,6 +8,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated'
 
+import { useTheme } from '@/theme/ThemeContext'
+
 // Gmail-style coin-flip avatar (Step 26.7 polish): the leading circle
 // Y-rotates 180°, crossfading at the 90° midpoint to a violet check circle.
 // Deselect plays the same animation in reverse. withTiming retargets from
@@ -25,6 +27,7 @@ type Props = {
 }
 
 export function FlipAvatar({ selected, onPress, onLongPress, children, accessibilityLabel }: Props) {
+  const { tokens } = useTheme()
   const progress = useSharedValue(selected ? 1 : 0)
 
   useEffect(() => {
@@ -53,7 +56,9 @@ export function FlipAvatar({ selected, onPress, onLongPress, children, accessibi
       accessibilityState={{ selected }}
     >
       <Animated.View style={[styles.face, frontStyle]}>{children}</Animated.View>
-      <Animated.View style={[styles.face, styles.checkFace, backStyle]}>
+      <Animated.View
+        style={[styles.face, { backgroundColor: tokens.accentSolid }, backStyle]}
+      >
         <Check size={18} color="#ffffff" strokeWidth={3} />
       </Animated.View>
     </Pressable>
@@ -75,8 +80,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backfaceVisibility: 'hidden',
-  },
-  checkFace: {
-    backgroundColor: '#8b5cf6',
   },
 })

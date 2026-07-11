@@ -96,10 +96,15 @@ export function NewFolderDialog({ visible, defaultParentId = null, onClose, onCr
             disabled={!canCreate}
             style={({ pressed }) => [
               styles.primaryBtn,
-              { opacity: !canCreate ? 0.4 : pressed ? 0.85 : 1 },
+              {
+                backgroundColor: tokens.primaryBtnBg,
+                opacity: !canCreate ? 0.4 : pressed ? 0.85 : 1,
+              },
             ]}
           >
-            <Text style={styles.primaryBtnText}>{saving ? 'Creating...' : 'Create'}</Text>
+            <Text style={[styles.primaryBtnText, { color: tokens.primaryBtnText }]}>
+              {saving ? 'Creating...' : 'Create'}
+            </Text>
           </Pressable>
         </>
       }
@@ -133,15 +138,15 @@ export function NewFolderDialog({ visible, defaultParentId = null, onClose, onCr
         {parentLocked ? (
           /* Locked parent info box — "Add sub-folder" flow */
           <View style={styles.lockedParent}>
-            <FolderIcon size={16} color="#c4b5fd" strokeWidth={2} />
-            <Text style={[styles.lockedParentText, { color: 'rgba(237,233,254,0.8)' }]}>
+            <FolderIcon size={16} color={tokens.accentIcon} strokeWidth={2} />
+            <Text style={[styles.lockedParentText, { color: tokens.accentText }]}>
               Will be created inside{' '}
-              <Text style={styles.lockedParentName}>
+              <Text style={[styles.lockedParentName, { color: tokens.accentTextStrong }]}>
                 {folders.find((f) => f.id === parentId)?.name || 'this folder'}
               </Text>
             </Text>
             <Pressable onPress={() => setParentLocked(false)} hitSlop={6}>
-              <Text style={styles.changeLink}>Change</Text>
+              <Text style={[styles.changeLink, { color: tokens.accentTextFaint }]}>Change</Text>
             </Pressable>
           </View>
         ) : (
@@ -193,11 +198,9 @@ const styles = StyleSheet.create({
   },
   lockedParentName: {
     fontWeight: '600',
-    color: '#ede9fe',
   },
   changeLink: {
     fontSize: 12,
-    color: 'rgba(221,214,254,0.6)',
     textDecorationLine: 'underline',
   },
   ghostBtn: {
@@ -212,11 +215,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: 10,
     borderRadius: radius.md,
-    backgroundColor: '#ffffff',
   },
   primaryBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#18181b',
   },
 })

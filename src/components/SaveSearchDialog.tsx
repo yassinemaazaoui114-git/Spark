@@ -44,11 +44,14 @@ export function SaveSearchDialog({ visible, contextLine, onClose, onSave }: Prop
             disabled={!canSave}
             style={({ pressed }) => [
               styles.primaryBtn,
-              { opacity: !canSave ? 0.4 : pressed ? 0.85 : 1 },
+              {
+                backgroundColor: tokens.primaryBtnBg,
+                opacity: !canSave ? 0.4 : pressed ? 0.85 : 1,
+              },
             ]}
           >
-            <Check size={16} color="#18181b" strokeWidth={2.5} />
-            <Text style={styles.primaryBtnText}>Save</Text>
+            <Check size={16} color={tokens.primaryBtnText} strokeWidth={2.5} />
+            <Text style={[styles.primaryBtnText, { color: tokens.primaryBtnText }]}>Save</Text>
           </Pressable>
         </>
       }
@@ -102,11 +105,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingVertical: 10,
     borderRadius: radius.md,
-    backgroundColor: '#ffffff',
   },
   primaryBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#18181b',
   },
 })

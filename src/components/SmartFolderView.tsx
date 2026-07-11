@@ -19,14 +19,15 @@ import type { Folder, VoiceRecord } from '@/types'
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 const MONTH_MS = 30 * 24 * 60 * 60 * 1000
 
+// Icon colors per theme: pale shades on dark, deep shades on light
 const META: Record<
   SmartFolder,
-  { label: string; Icon: typeof Sparkles; color: string }
+  { label: string; Icon: typeof Sparkles; color: { dark: string; light: string } }
 > = {
-  all: { label: 'All records', Icon: Sparkles, color: '#c4b5fd' },
-  week: { label: 'This week', Icon: Clock, color: '#93c5fd' },
-  month: { label: 'This month', Icon: Clock, color: '#93c5fd' },
-  archive: { label: 'Archive', Icon: Archive, color: '#d4d4d8' },
+  all: { label: 'All records', Icon: Sparkles, color: { dark: '#c4b5fd', light: '#7c3aed' } },
+  week: { label: 'This week', Icon: Clock, color: { dark: '#93c5fd', light: '#2563eb' } },
+  month: { label: 'This month', Icon: Clock, color: { dark: '#93c5fd', light: '#2563eb' } },
+  archive: { label: 'Archive', Icon: Archive, color: { dark: '#d4d4d8', light: '#52525b' } },
 }
 
 export function filterSmartFolder(records: VoiceRecord[], smart: SmartFolder): VoiceRecord[] {
@@ -52,17 +53,18 @@ type Props = {
 }
 
 export function SmartFolderView({ smart, records, folders, onClear, onChanged }: Props) {
-  const { tokens } = useTheme()
+  const { theme, tokens } = useTheme()
   const [sort, setSort] = useState<SortOption>('newest')
 
   const { label, Icon, color } = META[smart]
+  const iconColor = color[theme]
   const results = sortRecords(filterSmartFolder(records, smart), sort)
 
   return (
     <View>
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          <Icon size={13} color={color} strokeWidth={2} />
+          <Icon size={13} color={iconColor} strokeWidth={2} />
           <Text style={[styles.headerText, { color: tokens.textSecondary }]} numberOfLines={1}>
             {label}
             <Text style={{ color: tokens.textFaint }}>

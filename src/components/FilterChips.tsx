@@ -15,8 +15,14 @@ type Props = {
 }
 
 export function FilterChips({ filters, allTags }: Props) {
-  const { tokens } = useTheme()
+  const { theme, tokens } = useTheme()
   const hasPinned = filters.scoped.some((r) => r.pinned)
+
+  // Active-chip text: pale -200 shades on dark, deep -700 on light
+  const light = theme === 'light'
+  const amberText = light ? '#b45309' : '#fde68a'
+  const emeraldText = light ? '#047857' : '#a7f3d0'
+  const violetText = tokens.accentIconSoft
 
   if (!hasPinned && allTags.length === 0 && filters.scoped.length === 0) return null
 
@@ -33,14 +39,14 @@ export function FilterChips({ filters, allTags }: Props) {
           icon={
             <Pin
               size={10}
-              color={filters.pinnedOnly ? '#fde68a' : tokens.textMuted}
-              fill={filters.pinnedOnly ? '#fde68a' : 'transparent'}
+              color={filters.pinnedOnly ? amberText : tokens.textMuted}
+              fill={filters.pinnedOnly ? amberText : 'transparent'}
               strokeWidth={2}
             />
           }
           active={filters.pinnedOnly}
           activeStyle={styles.amberActive}
-          activeTextColor="#fde68a"
+          activeTextColor={amberText}
           onPress={() => filters.togglePinned()}
         />
       )}
@@ -48,14 +54,14 @@ export function FilterChips({ filters, allTags }: Props) {
         label="Long"
         active={filters.duration === 'long'}
         activeStyle={styles.emeraldActive}
-        activeTextColor="#a7f3d0"
+        activeTextColor={emeraldText}
         onPress={() => filters.toggleDuration('long')}
       />
       <Chip
         label="Short"
         active={filters.duration === 'short'}
         activeStyle={styles.emeraldActive}
-        activeTextColor="#a7f3d0"
+        activeTextColor={emeraldText}
         onPress={() => filters.toggleDuration('short')}
       />
       {allTags.map((t) => (
@@ -65,13 +71,16 @@ export function FilterChips({ filters, allTags }: Props) {
           icon={
             <Hash
               size={10}
-              color={filters.tag === t ? '#ddd6fe' : tokens.textMuted}
+              color={filters.tag === t ? violetText : tokens.textMuted}
               strokeWidth={2}
             />
           }
           active={filters.tag === t}
-          activeStyle={styles.violetActive}
-          activeTextColor="#ddd6fe"
+          activeStyle={{
+            backgroundColor: tokens.accentTintStrong,
+            borderColor: tokens.accentBorderStrong,
+          }}
+          activeTextColor={violetText}
           onPress={() => filters.toggleTag(t)}
         />
       ))}
@@ -150,9 +159,5 @@ const styles = StyleSheet.create({
   emeraldActive: {
     backgroundColor: 'rgba(16,185,129,0.25)',
     borderColor: 'rgba(52,211,153,0.5)',
-  },
-  violetActive: {
-    backgroundColor: 'rgba(139,92,246,0.3)',
-    borderColor: 'rgba(167,139,250,0.5)',
   },
 })

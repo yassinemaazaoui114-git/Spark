@@ -2,14 +2,17 @@ import { useEffect, useReducer } from 'react'
 
 // Multi-select store (Step 26.7). Module-level like smart-folder: every
 // RecordCard subscribes, the SelectionToolbar acts on the selected ids.
-// Mounted cards register as "visible" so Select-all knows the current list.
+// Cards on the FOCUSED screen register as "visible" so Select-all only grabs
+// the list the user is looking at (tab screens stay mounted in the
+// background, so a plain mount-based registry would leak rows across tabs).
+// Archive/restore state is looked up live from the records by the toolbar —
+// never snapshotted here, so it can't go stale.
 
-type Meta = { archived: boolean }
 type Listener = () => void
 
 let active = false
-const selected = new Map<string, Meta>()
-const visible = new Map<string, Meta>()
+const selected = new Set<string>()
+const visible = new Set<string>()
 const listeners = new Set<Listener>()
 
 function emit() {
@@ -19,28 +22,25 @@ function emit() {
 export const selection = {
   isActive: () => active,
   count: () => selected.size,
-  ids: () => [...selected.keys()],
+  ids: () => [...selected],
   isSelected: (id: string) => selected.has(id),
-  /** True when every selected record is archived (toolbar shows Unarchive) */
-  allArchived: () =>
-    selected.size > 0 && [...selected.values()].every((m) => m.archived),
 
-  start(id: string, meta: Meta) {
+  start(id: string) {
     active = true
     selected.clear()
-    selected.set(id, meta)
+    selected.add(id)
     emit()
   },
-  toggle(id: string, meta: Meta) {
+  toggle(id: string) {
     if (selected.has(id)) {
       selected.delete(id)
     } else {
-      selected.set(id, meta)
+      selected.add(id)
     }
     emit()
   },
   selectAll() {
-    visible.forEach((meta, id) => selected.set(id, meta))
+    visible.forEach((id) => selected.add(id))
     emit()
   },
   exit() {
@@ -49,8 +49,8 @@ export const selection = {
     emit()
   },
 
-  registerVisible(id: string, meta: Meta) {
-    visible.set(id, meta)
+  registerVisible(id: string) {
+    visible.add(id)
   },
   unregisterVisible(id: string) {
     visible.delete(id)

@@ -190,8 +190,8 @@ export function SearchBar({ search, folders = [], onLoadSavedFolder }: Props) {
           accessibilityRole="button"
           accessibilityLabel="Save this search"
         >
-          <Plus size={11} color="#c4b5fd" strokeWidth={2} />
-          <Text style={styles.saveLinkText}>Save this search</Text>
+          <Plus size={11} color={tokens.accentIcon} strokeWidth={2} />
+          <Text style={[styles.saveLinkText, { color: tokens.accentIcon }]}>Save this search</Text>
         </Pressable>
       )}
 
@@ -271,7 +271,7 @@ export function SearchBar({ search, folders = [], onLoadSavedFolder }: Props) {
                         accessibilityRole="button"
                         accessibilityLabel={`Run saved search ${s.name}`}
                       >
-                        <Search size={12} color="#c4b5fd" strokeWidth={2} />
+                        <Search size={12} color={tokens.accentIcon} strokeWidth={2} />
                         <Text
                           style={[styles.savedName, { color: tokens.textPrimary }]}
                           numberOfLines={1}
@@ -448,7 +448,6 @@ const styles = StyleSheet.create({
   },
   saveLinkText: {
     fontSize: 12,
-    color: '#c4b5fd',
   },
   savedList: {
     gap: 4,

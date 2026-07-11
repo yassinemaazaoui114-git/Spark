@@ -81,7 +81,7 @@ export function TagsSection() {
                     { backgroundColor: tokens.surfaceSubtle, borderColor: tokens.border },
                   ]}
                 >
-                  <Hash size={14} color="#c4b5fd" strokeWidth={2} />
+                  <Hash size={14} color={tokens.accentIcon} strokeWidth={2} />
                   <Text style={[styles.tagName, { color: tokens.textPrimary }]} numberOfLines={1}>
                     {t}
                   </Text>

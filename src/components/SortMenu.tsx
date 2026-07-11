@@ -63,7 +63,7 @@ export function SortMenu({ value, onChange }: Props) {
                   }}
                   style={({ pressed }) => [
                     styles.item,
-                    selected && { backgroundColor: 'rgba(139,92,246,0.2)' },
+                    selected && { backgroundColor: tokens.accentTint },
                     pressed && !selected && { backgroundColor: tokens.surfaceSubtle },
                   ]}
                   accessibilityRole="menuitem"
@@ -71,12 +71,12 @@ export function SortMenu({ value, onChange }: Props) {
                   <Text
                     style={[
                       styles.itemText,
-                      { color: selected ? '#ede9fe' : tokens.textSecondary },
+                      { color: selected ? tokens.accentTextStrong : tokens.textSecondary },
                     ]}
                   >
                     {opt.label}
                   </Text>
-                  {selected && <Check size={14} color="#ede9fe" strokeWidth={2} />}
+                  {selected && <Check size={14} color={tokens.accentTextStrong} strokeWidth={2} />}
                 </Pressable>
               )
             })}

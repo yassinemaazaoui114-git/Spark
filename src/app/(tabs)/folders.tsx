@@ -32,7 +32,7 @@ import { radius, spacing } from '@/theme/tokens'
 import type { Folder, VoiceRecord } from '@/types'
 
 export default function FoldersScreen() {
-  const { tokens } = useTheme()
+  const { theme, tokens } = useTheme()
   const { showToast } = useToast()
 
   const [folders, setFolders] = useState<Folder[]>([])
@@ -145,9 +145,9 @@ export default function FoldersScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onPullRefresh}
-                tintColor="#c4b5fd"
-                colors={['#8b5cf6']}
-                progressBackgroundColor="#1a0b2e"
+                tintColor={tokens.accentIcon}
+                colors={[tokens.accentSolid]}
+                progressBackgroundColor={theme === 'light' ? '#ffffff' : '#1a0b2e'}
               />
             }
           >
@@ -288,7 +288,7 @@ export default function FoldersScreen() {
         }}
       />
 
-      <SelectionToolbar onChanged={refresh} />
+      <SelectionToolbar records={records} onChanged={refresh} />
     </View>
   )
 }

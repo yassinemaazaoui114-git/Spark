@@ -42,8 +42,10 @@ export function SecuritySection() {
           accessibilityRole="button"
           accessibilityLabel="Enable biometric unlock"
         >
-          <Shield size={14} color="#ddd6fe" strokeWidth={2} />
-          <Text style={styles.enableText}>Enable biometric unlock</Text>
+          <Shield size={14} color={tokens.accentIconSoft} strokeWidth={2} />
+          <Text style={[styles.enableText, { color: tokens.accentIconSoft }]}>
+            Enable biometric unlock
+          </Text>
         </Pressable>
       </View>
     </View>
@@ -104,6 +106,5 @@ const styles = StyleSheet.create({
   },
   enableText: {
     fontSize: 13,
-    color: '#ddd6fe',
   },
 })

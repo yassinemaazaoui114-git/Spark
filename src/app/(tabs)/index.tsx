@@ -42,7 +42,7 @@ import { spacing } from '@/theme/tokens'
 import type { Folder, VoiceRecord } from '@/types'
 
 export default function RecordScreen() {
-  const { tokens } = useTheme()
+  const { theme, tokens } = useTheme()
   const { showToast } = useToast()
   const recorder = useRecorder()
 
@@ -136,9 +136,9 @@ export default function RecordScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onPullRefresh}
-                tintColor="#c4b5fd"
-                colors={['#8b5cf6']}
-                progressBackgroundColor="#1a0b2e"
+                tintColor={tokens.accentIcon}
+                colors={[tokens.accentSolid]}
+                progressBackgroundColor={theme === 'light' ? '#ffffff' : '#1a0b2e'}
               />
             }
           >
@@ -279,7 +279,7 @@ export default function RecordScreen() {
         }}
       />
 
-      <SelectionToolbar onChanged={refreshRecords} />
+      <SelectionToolbar records={records} onChanged={refreshRecords} />
     </View>
   )
 }

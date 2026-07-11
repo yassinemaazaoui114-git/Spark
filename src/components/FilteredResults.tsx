@@ -20,7 +20,7 @@ type Props = {
 }
 
 export function FilteredResults({ filters, folders, onChanged }: Props) {
-  const { tokens } = useTheme()
+  const { theme, tokens } = useTheme()
 
   const labels: string[] = []
   if (filters.pinnedOnly) labels.push('Pinned')
@@ -32,8 +32,10 @@ export function FilteredResults({ filters, folders, onChanged }: Props) {
   const iconColor = filters.pinnedOnly
     ? accent.amber
     : filters.duration
-      ? '#6ee7b7'
-      : '#c4b5fd'
+      ? theme === 'light'
+        ? '#047857'
+        : '#6ee7b7'
+      : tokens.accentIcon
 
   return (
     <View>

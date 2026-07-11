@@ -12,7 +12,8 @@ import {
   Scissors,
   Share2,
 } from 'lucide-react-native'
-import { useEffect, useState } from 'react'
+import { useFocusEffect } from 'expo-router'
+import { useCallback, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
 import { DeleteRecordDialog } from '@/components/DeleteRecordDialog'
@@ -61,15 +62,19 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
   const sel = useSelection()
   const selecting = sel.isActive()
   const isSelected = sel.isSelected(record.id)
-  useEffect(() => {
-    sel.registerVisible(record.id, { archived: record.archived })
-    return () => sel.unregisterVisible(record.id)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [record.id, record.archived])
+  // Register while the parent screen is focused only — background tab screens
+  // stay mounted, and their rows must not leak into Select-all.
+  useFocusEffect(
+    useCallback(() => {
+      sel.registerVisible(record.id)
+      return () => sel.unregisterVisible(record.id)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [record.id])
+  )
 
   const toggleSelect = () => {
     haptic('light')
-    sel.toggle(record.id, { archived: record.archived })
+    sel.toggle(record.id)
   }
 
   const openActions = () => {
@@ -123,7 +128,7 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
       style={[
         styles.card,
         isSelected
-          ? styles.cardSelected
+          ? { backgroundColor: tokens.accentTint, borderColor: tokens.accentBorder }
           : { backgroundColor: tokens.surfaceSubtle, borderColor: tokens.border },
       ]}
     >
@@ -154,12 +159,12 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
               return
             }
             haptic('medium')
-            sel.start(record.id, { archived: record.archived })
+            sel.start(record.id)
           }}
         >
           {isTextNote ? (
             <View style={styles.penCircle}>
-              <PenLine size={16} color="#93c5fd" strokeWidth={2} />
+              <PenLine size={16} color={tokens.blueIcon} strokeWidth={2} />
             </View>
           ) : (
             <View style={[styles.playCircle, { backgroundColor: tokens.surfaceStrong }]}>
@@ -192,7 +197,7 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
             )}
             {isTextNote && (
               <View style={styles.noteBadge}>
-                <Text style={styles.noteBadgeText}>NOTE</Text>
+                <Text style={[styles.noteBadgeText, { color: tokens.blueBadgeText }]}>NOTE</Text>
               </View>
             )}
             <Text style={[styles.name, { color: tokens.textPrimary }]} numberOfLines={1}>
@@ -208,9 +213,15 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
           {record.tags.length > 0 && (
             <View style={styles.tagRow}>
               {record.tags.map((t) => (
-                <View key={t} style={styles.tagChip}>
-                  <Hash size={8} color="rgba(221,214,254,0.8)" strokeWidth={2} />
-                  <Text style={styles.tagText}>{t}</Text>
+                <View
+                  key={t}
+                  style={[
+                    styles.tagChip,
+                    { backgroundColor: tokens.accentTint, borderColor: tokens.accentBorderSoft },
+                  ]}
+                >
+                  <Hash size={8} color={tokens.accentText} strokeWidth={2} />
+                  <Text style={[styles.tagText, { color: tokens.accentText }]}>{t}</Text>
                 </View>
               ))}
             </View>
@@ -259,9 +270,9 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
                   maximumValue={Math.max(player.duration, 0.1)}
                   value={Math.min(player.currentTime, player.duration)}
                   onSlidingComplete={(v) => player.seekTo(v)}
-                  minimumTrackTintColor="#ffffff"
-                  maximumTrackTintColor="rgba(255,255,255,0.2)"
-                  thumbTintColor="#ffffff"
+                  minimumTrackTintColor={tokens.textPrimary}
+                  maximumTrackTintColor={tokens.borderStrong}
+                  thumbTintColor={tokens.textPrimary}
                 />
                 <Text style={[styles.scrubTime, { color: tokens.textMuted }]}>
                   {formatDuration(player.duration)}
@@ -285,14 +296,23 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
 
                 <Pressable
                   onPress={() => player.toggle()}
-                  style={({ pressed }) => [styles.bigPlayBtn, pressed && { opacity: 0.8 }]}
+                  style={({ pressed }) => [
+                    styles.bigPlayBtn,
+                    { backgroundColor: tokens.accentTint, borderColor: tokens.accentBorderSoft },
+                    pressed && { opacity: 0.8 },
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel={player.playing ? 'Pause' : 'Play'}
                 >
                   {player.playing ? (
-                    <Pause size={20} color="#ede9fe" strokeWidth={2} />
+                    <Pause size={20} color={tokens.accentTextStrong} strokeWidth={2} />
                   ) : (
-                    <Play size={20} color="#ede9fe" strokeWidth={2} style={{ marginLeft: 2 }} />
+                    <Play
+                      size={20}
+                      color={tokens.accentTextStrong}
+                      strokeWidth={2}
+                      style={{ marginLeft: 2 }}
+                    />
                   )}
                 </Pressable>
 
@@ -370,7 +390,7 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
         onTrim={() => showToast('Trim arrives in Step 32')}
         onArchive={handleToggleArchive}
         onDelete={() => setShowDelete(true)}
-        onSelect={() => sel.start(record.id, { archived: record.archived })}
+        onSelect={() => sel.start(record.id)}
       />
 
       <MoveRecordDialog
@@ -408,10 +428,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: spacing.md,
-  },
-  cardSelected: {
-    backgroundColor: 'rgba(139,92,246,0.15)',
-    borderColor: 'rgba(167,139,250,0.4)',
   },
   topRow: {
     flexDirection: 'row',
@@ -453,7 +469,6 @@ const styles = StyleSheet.create({
   noteBadgeText: {
     fontSize: 8,
     letterSpacing: 1,
-    color: 'rgba(147,197,253,0.6)',
   },
   name: {
     flex: 1,
@@ -481,13 +496,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(139,92,246,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.25)',
   },
   tagText: {
     fontSize: 10,
-    color: 'rgba(221,214,254,0.8)',
   },
   moreBtn: {
     padding: 4,
@@ -545,9 +557,7 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(167,139,250,0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(196,181,253,0.25)',
   },
   pillBtn: {
     flexDirection: 'row',

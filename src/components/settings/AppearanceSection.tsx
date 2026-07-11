@@ -3,17 +3,16 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { LinearGradient } from 'expo-linear-gradient'
 
-import { useToast } from '@/context/ToastContext'
 import { haptic } from '@/lib/haptics'
 import { useTheme } from '@/theme/ThemeContext'
 import { ICON_VARIANTS, radius, spacing } from '@/theme/tokens'
 
-// Settings → Appearance: theme picker (light mode functional in Step 27)
-// and app-icon accent variants (functional in Step 29).
+// Settings → Appearance: theme picker and accent variants. The accent pick
+// recolors the whole app; the real launcher icon can only change in a dev
+// build (Step 34+, expo-alternate-app-icons) — assets wait in assets/icons/.
 
 export function AppearanceSection() {
-  const { theme, tokens } = useTheme()
-  const { showToast } = useToast()
+  const { theme, tokens, accent, setTheme, setAccent } = useTheme()
 
   return (
     <View>
@@ -33,7 +32,10 @@ export function AppearanceSection() {
             sub="Default"
             gradient={['#1a0b2e', '#0f0a1f']}
             selected={theme === 'dark'}
-            onPress={() => haptic('light')}
+            onPress={() => {
+              haptic('light')
+              setTheme('dark')
+            }}
           />
           <ThemeOption
             label="Light"
@@ -42,7 +44,7 @@ export function AppearanceSection() {
             selected={theme === 'light'}
             onPress={() => {
               haptic('light')
-              showToast('Light theme arrives in Step 27')
+              setTheme('light')
             }}
           />
         </View>
@@ -58,19 +60,26 @@ export function AppearanceSection() {
       >
         <Text style={[styles.cardTitle, { color: tokens.textPrimary }]}>App icon</Text>
         <Text style={[styles.cardHint, { color: tokens.textMuted }]}>
-          Pick an accent color for Spark.
+          Pick an accent color for Spark. The home-screen icon itself updates in the full
+          Android build.
         </Text>
         <View style={styles.swatchRow}>
           {ICON_VARIANTS.map((v) => {
-            const selected = v.id === 'violet' // accent switching arrives in Step 29
+            const selected = v.id === accent
             return (
               <Pressable
                 key={v.id}
                 onPress={() => {
                   haptic('light')
-                  if (!selected) showToast('Icon variants arrive in Step 29')
+                  setAccent(v.id)
                 }}
-                style={[styles.swatchWrap, selected && styles.swatchSelected]}
+                style={[
+                  styles.swatchWrap,
+                  selected && {
+                    borderColor:
+                      theme === 'light' ? 'rgba(26,11,46,0.5)' : 'rgba(255,255,255,0.6)',
+                  },
+                ]}
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
                 accessibilityLabel={v.name}
@@ -87,6 +96,9 @@ export function AppearanceSection() {
             )
           })}
         </View>
+        <Text style={[styles.variantName, { color: tokens.textFaint }]}>
+          {ICON_VARIANTS.find((v) => v.id === accent)?.name}
+        </Text>
       </View>
     </View>
   )
@@ -112,7 +124,7 @@ function ThemeOption({
       style={[
         styles.themeOption,
         selected
-          ? styles.themeSelected
+          ? { backgroundColor: tokens.accentTintStrong, borderColor: tokens.accentBorderStrong }
           : { backgroundColor: tokens.surfaceSubtle, borderColor: tokens.border },
       ]}
       accessibilityRole="radio"
@@ -175,10 +187,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
   },
-  themeSelected: {
-    backgroundColor: 'rgba(139,92,246,0.2)',
-    borderColor: 'rgba(167,139,250,0.5)',
-  },
   themePreview: {
     width: 32,
     height: 32,
@@ -207,13 +215,14 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
     overflow: 'hidden',
   },
-  swatchSelected: {
-    borderColor: 'rgba(255,255,255,0.6)',
-  },
   swatch: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.md - 2,
+  },
+  variantName: {
+    fontSize: 10,
+    marginTop: spacing.sm,
   },
 })

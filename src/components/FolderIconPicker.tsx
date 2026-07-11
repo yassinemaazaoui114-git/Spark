@@ -33,7 +33,10 @@ export function FolderIconPicker({ value, onChange }: Props) {
               style={[
                 styles.cell,
                 selected
-                  ? styles.cellSelected
+                  ? {
+                      backgroundColor: tokens.accentTintStrong,
+                      borderColor: tokens.accentBorderStrong,
+                    }
                   : { backgroundColor: tokens.surfaceSubtle, borderColor: tokens.border },
               ]}
               accessibilityRole="radio"
@@ -42,7 +45,7 @@ export function FolderIconPicker({ value, onChange }: Props) {
             >
               <Icon
                 size={16}
-                color={selected ? '#ddd6fe' : tokens.textMuted}
+                color={selected ? tokens.accentIconSoft : tokens.textMuted}
                 strokeWidth={2}
               />
             </Pressable>
@@ -73,10 +76,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  cellSelected: {
-    backgroundColor: 'rgba(139,92,246,0.25)',
-    borderColor: 'rgba(167,139,250,0.6)',
   },
   selectedLabel: {
     fontSize: 10,

@@ -34,7 +34,7 @@ export function StatsCard({ stats, onPress }: Props) {
       accessibilityLabel="Your stats"
     >
       <View style={styles.iconChip}>
-        <BarChart3 size={18} color="#ddd6fe" strokeWidth={2} />
+        <BarChart3 size={18} color={tokens.accentIconSoft} strokeWidth={2} />
       </View>
       <View style={styles.body}>
         <Text style={[styles.title, { color: tokens.textPrimary }]}>Your stats</Text>

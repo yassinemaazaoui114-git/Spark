@@ -91,7 +91,7 @@ export function FolderReorderList({
             accessibilityRole="button"
             accessibilityLabel={`Open folder ${item.name}`}
           >
-            <Text style={styles.openText}>Open</Text>
+            <Text style={[styles.openText, { color: tokens.accentIcon }]}>Open</Text>
           </Pressable>
         </View>
       </ScaleDecorator>
@@ -108,9 +108,13 @@ export function FolderReorderList({
           </Pressable>
           <Pressable
             onPress={() => onSave(list.map((f) => f.id))}
-            style={({ pressed }) => [styles.saveBtn, pressed && { opacity: 0.85 }]}
+            style={({ pressed }) => [
+              styles.saveBtn,
+              { backgroundColor: tokens.primaryBtnBg },
+              pressed && { opacity: 0.85 },
+            ]}
           >
-            <Text style={styles.saveText}>Save order</Text>
+            <Text style={[styles.saveText, { color: tokens.primaryBtnText }]}>Save order</Text>
           </Pressable>
         </View>
       </View>
@@ -161,7 +165,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   saveBtn: {
-    backgroundColor: '#ffffff',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: radius.full,
@@ -169,7 +172,6 @@ const styles = StyleSheet.create({
   saveText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#18181b',
   },
   hint: {
     fontSize: 11,
@@ -232,6 +234,5 @@ const styles = StyleSheet.create({
   },
   openText: {
     fontSize: 12,
-    color: '#c4b5fd',
   },
 })

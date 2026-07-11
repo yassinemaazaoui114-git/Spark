@@ -43,11 +43,17 @@ export function TagInput({ tags, onChange, allTags, label = 'Tags (optional)' }:
       {tags.length > 0 && (
         <View style={styles.chips}>
           {tags.map((t) => (
-            <View key={t} style={styles.chip}>
-              <Hash size={10} color="#ddd6fe" strokeWidth={2} />
-              <Text style={styles.chipText}>{t}</Text>
+            <View
+              key={t}
+              style={[
+                styles.chip,
+                { backgroundColor: tokens.accentTint, borderColor: tokens.accentBorderSoft },
+              ]}
+            >
+              <Hash size={10} color={tokens.accentIconSoft} strokeWidth={2} />
+              <Text style={[styles.chipText, { color: tokens.accentTextStrong }]}>{t}</Text>
               <Pressable onPress={() => removeTag(t)} hitSlop={8} accessibilityLabel={`Remove tag ${t}`}>
-                <X size={12} color="rgba(221,214,254,0.6)" strokeWidth={2} />
+                <X size={12} color={tokens.accentTextFaint} strokeWidth={2} />
               </Pressable>
             </View>
           ))}
@@ -149,13 +155,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: radius.full,
-    backgroundColor: 'rgba(139,92,246,0.2)',
     borderWidth: 1,
-    borderColor: 'rgba(167,139,250,0.3)',
   },
   chipText: {
     fontSize: 12,
-    color: '#ede9fe',
   },
   inputRow: {
     flexDirection: 'row',

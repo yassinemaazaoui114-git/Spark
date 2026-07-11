@@ -51,7 +51,7 @@ export function EmptyState({ title, message }: Props) {
             y1={-30}
             x2={0}
             y2={40}
-            stroke="rgba(255,255,255,0.2)"
+            stroke={tokens.borderStrong}
             strokeWidth={3}
             strokeLinecap="round"
           />

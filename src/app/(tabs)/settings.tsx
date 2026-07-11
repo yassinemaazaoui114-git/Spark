@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ButterflyBackground } from '@/components/ButterflyBackground'
 import { FadeView } from '@/components/FadeView'
+import { StatsSheet } from '@/components/StatsSheet'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
 import { AboutSection } from '@/components/settings/AboutSection'
 import { AppearanceSection } from '@/components/settings/AppearanceSection'
@@ -15,7 +16,6 @@ import { SecuritySection } from '@/components/settings/SecuritySection'
 import { SmartViewsSection } from '@/components/settings/SmartViewsSection'
 import { StatsCard } from '@/components/settings/StatsCard'
 import { TagsSection } from '@/components/settings/TagsSection'
-import { useToast } from '@/context/ToastContext'
 import { computeStats } from '@/lib/stats'
 import { onTabReset } from '@/lib/tab-events'
 import { getFolders } from '@/storage/folders'
@@ -27,11 +27,11 @@ import type { Folder, VoiceRecord } from '@/types'
 
 export default function SettingsScreen() {
   const { tokens } = useTheme()
-  const { showToast } = useToast()
 
   const [records, setRecords] = useState<VoiceRecord[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
   const [tags, setTags] = useState<string[]>([])
+  const [showStats, setShowStats] = useState(false)
 
   // Re-tap on Settings resets (remount scrolls back to top)
   const [resetKey, setResetKey] = useState(0)
@@ -60,10 +60,7 @@ export default function SettingsScreen() {
             <PrivacyBanner />
 
             <View style={styles.section}>
-              <StatsCard
-                stats={stats}
-                onPress={() => showToast('Full stats arrive in Step 28')}
-              />
+              <StatsCard stats={stats} onPress={() => setShowStats(true)} />
             </View>
 
             {/* Archive card + smart views grid */}
@@ -101,6 +98,8 @@ export default function SettingsScreen() {
           </ScrollView>
         </FadeView>
       </SafeAreaView>
+
+      <StatsSheet visible={showStats} onClose={() => setShowStats(false)} stats={stats} />
     </View>
   )
 }

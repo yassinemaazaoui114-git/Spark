@@ -29,7 +29,7 @@ type Props = {
 }
 
 export function RecordPanel({ recorder, onFinished, onTypeNote }: Props) {
-  const { tokens } = useTheme()
+  const { theme, tokens } = useTheme()
   const { showToast } = useToast()
   const { phase, seconds } = recorder
 
@@ -129,7 +129,16 @@ export function RecordPanel({ recorder, onFinished, onTypeNote }: Props) {
           </View>
 
           {/* Live waveform — metering-driven scrolling bars */}
-          <View style={[styles.waveformBox, { borderColor: tokens.border }]}>
+          <View
+            style={[
+              styles.waveformBox,
+              {
+                borderColor: tokens.border,
+                // Dark inset behind the violet bars; soft violet tint on light
+                backgroundColor: theme === 'light' ? 'rgba(139,92,246,0.08)' : 'rgba(0,0,0,0.25)',
+              },
+            ]}
+          >
             <LiveWaveform recorder={recorder.audioRecorder} paused={phase === 'paused'} />
           </View>
 
@@ -305,7 +314,6 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: radius.lg,
     borderWidth: 1,
-    backgroundColor: 'rgba(0,0,0,0.25)',
     overflow: 'hidden',
   },
   controls: {

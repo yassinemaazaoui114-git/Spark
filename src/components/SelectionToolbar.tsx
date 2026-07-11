@@ -1,6 +1,7 @@
 import { Archive, ArchiveRestore, CheckCheck, FolderInput, Trash2, X } from 'lucide-react-native'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { ConfirmDialog } from '@/components/ConfirmDialog'
@@ -14,16 +15,18 @@ import { batchMoveRecords, batchSetArchived } from '@/storage/records'
 import { softDeleteRecords } from '@/storage/trash'
 import { useTheme } from '@/theme/ThemeContext'
 import { radius, spacing } from '@/theme/tokens'
-import type { Folder } from '@/types'
+import type { Folder, VoiceRecord } from '@/types'
 
 // Floating batch-action toolbar shown while multi-select is active.
-// Rendered by the home + folders screens (they own the refresh).
+// Rendered by the home + folders screens (they own the refresh and pass
+// their live records so archive state is never read from a stale snapshot).
 
 type Props = {
+  records: VoiceRecord[]
   onChanged: () => void
 }
 
-export function SelectionToolbar({ onChanged }: Props) {
+export function SelectionToolbar({ records, onChanged }: Props) {
   const { theme, tokens } = useTheme()
   const { showToast } = useToast()
   const insets = useSafeAreaInsets()
@@ -36,7 +39,12 @@ export function SelectionToolbar({ onChanged }: Props) {
   if (!sel.isActive()) return null
 
   const count = sel.count()
-  const unarchiveMode = sel.allArchived()
+  // Restore mode only when every selected record is archived, read live from
+  // the screen's records (a snapshot taken at selection time can go stale).
+  const selectedIds = sel.ids()
+  const unarchiveMode =
+    count > 0 &&
+    selectedIds.every((id) => records.find((r) => r.id === id)?.archived === true)
 
   const finish = (message: string) => {
     haptic('success')
@@ -73,7 +81,10 @@ export function SelectionToolbar({ onChanged }: Props) {
   return (
     <>
       <View style={[styles.wrap, { paddingBottom: insets.bottom + 12 }]} pointerEvents="box-none">
-        <View
+        {/* Swaps with the tab bar: rises in as the tab bar drops out */}
+        <Animated.View
+          entering={FadeInUp.duration(250)}
+          exiting={FadeOutDown.duration(200)}
           style={[
             styles.bar,
             {
@@ -94,7 +105,7 @@ export function SelectionToolbar({ onChanged }: Props) {
           />
           <ToolbarButton
             label="Move"
-            icon={<FolderInput size={16} color="#c4b5fd" strokeWidth={2} />}
+            icon={<FolderInput size={16} color={tokens.accentIcon} strokeWidth={2} />}
             disabled={count === 0}
             onPress={async () => {
               haptic('light')
@@ -106,9 +117,13 @@ export function SelectionToolbar({ onChanged }: Props) {
             label={unarchiveMode ? 'Restore' : 'Archive'}
             icon={
               unarchiveMode ? (
-                <ArchiveRestore size={16} color="#6ee7b7" strokeWidth={2} />
+                <ArchiveRestore
+                  size={16}
+                  color={theme === 'light' ? '#047857' : '#6ee7b7'}
+                  strokeWidth={2}
+                />
               ) : (
-                <Archive size={16} color="#d4d4d8" strokeWidth={2} />
+                <Archive size={16} color={theme === 'light' ? '#52525b' : '#d4d4d8'} strokeWidth={2} />
               )
             }
             disabled={count === 0}
@@ -119,7 +134,7 @@ export function SelectionToolbar({ onChanged }: Props) {
           />
           <ToolbarButton
             label="Trash"
-            icon={<Trash2 size={16} color="#fca5a5" strokeWidth={2} />}
+            icon={<Trash2 size={16} color={theme === 'light' ? '#dc2626' : '#fca5a5'} strokeWidth={2} />}
             disabled={count === 0}
             onPress={() => {
               haptic('light')
@@ -134,7 +149,7 @@ export function SelectionToolbar({ onChanged }: Props) {
               sel.exit()
             }}
           />
-        </View>
+        </Animated.View>
       </View>
 
       {/* Batch move */}

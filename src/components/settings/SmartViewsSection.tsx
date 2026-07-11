@@ -67,17 +67,17 @@ export function SmartViewsSection() {
       <View style={styles.grid}>
         <GridButton
           label="All"
-          icon={<Sparkles size={16} color="#c4b5fd" strokeWidth={2} />}
+          icon={<Sparkles size={16} color={tokens.accentIcon} strokeWidth={2} />}
           onPress={() => open('all')}
         />
         <GridButton
           label="This week"
-          icon={<Clock size={16} color="#93c5fd" strokeWidth={2} />}
+          icon={<Clock size={16} color={tokens.blueIcon} strokeWidth={2} />}
           onPress={() => open('week')}
         />
         <GridButton
           label="This month"
-          icon={<Clock size={16} color="#93c5fd" strokeWidth={2} />}
+          icon={<Clock size={16} color={tokens.blueIcon} strokeWidth={2} />}
           onPress={() => open('month')}
         />
       </View>

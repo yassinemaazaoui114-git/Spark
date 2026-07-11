@@ -79,8 +79,8 @@ export function DeleteRecordDialog({ record, onClose, onDeleted }: Props) {
               <View style={styles.tagRow}>
                 {record.tags.map((t) => (
                   <View key={t} style={styles.tagChip}>
-                    <Hash size={8} color="rgba(221,214,254,0.8)" strokeWidth={2} />
-                    <Text style={styles.tagText}>{t}</Text>
+                    <Hash size={8} color={tokens.accentText} strokeWidth={2} />
+                    <Text style={[styles.tagText, { color: tokens.accentText }]}>{t}</Text>
                   </View>
                 ))}
               </View>
@@ -130,7 +130,6 @@ const styles = StyleSheet.create({
   },
   tagText: {
     fontSize: 10,
-    color: 'rgba(221,214,254,0.8)',
   },
   warning: {
     fontSize: 12,

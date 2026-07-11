@@ -1,5 +1,6 @@
 import { Folder, Mic, Settings } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import Animated, { FadeInUp, FadeOutDown } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { haptic } from '@/lib/haptics'
@@ -46,7 +47,10 @@ export function TabBar({ state, navigation }: Props) {
       style={[styles.wrap, { paddingBottom: insets.bottom + 12 }]}
       pointerEvents="box-none"
     >
-      <View
+      {/* Swaps with the SelectionToolbar: drops out as the toolbar rises in */}
+      <Animated.View
+        entering={FadeInUp.duration(250)}
+        exiting={FadeOutDown.duration(200)}
         style={[
           styles.bar,
           {
@@ -79,7 +83,7 @@ export function TabBar({ state, navigation }: Props) {
             }
           }
 
-          const activeColor = '#ddd6fe' // violet-200
+          const activeColor = tokens.accentIconSoft
           const inactiveColor =
             theme === 'light' ? 'rgba(26,11,46,0.4)' : 'rgba(255,255,255,0.4)'
 
@@ -89,7 +93,7 @@ export function TabBar({ state, navigation }: Props) {
               onPress={onPress}
               style={[
                 styles.tab,
-                focused && { backgroundColor: 'rgba(167,139,250,0.15)' },
+                focused && { backgroundColor: tokens.accentTint },
               ]}
               accessibilityRole="tab"
               accessibilityState={{ selected: focused }}
@@ -111,7 +115,7 @@ export function TabBar({ state, navigation }: Props) {
             </Pressable>
           )
         })}
-      </View>
+      </Animated.View>
     </View>
   )
 }

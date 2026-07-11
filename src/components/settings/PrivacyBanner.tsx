@@ -11,7 +11,7 @@ export function PrivacyBanner() {
   return (
     <View style={styles.card}>
       <View style={styles.iconChip}>
-        <Shield size={16} color="#ddd6fe" strokeWidth={2} />
+        <Shield size={16} color={tokens.accentIconSoft} strokeWidth={2} />
       </View>
       <View style={styles.body}>
         <Text style={[styles.title, { color: tokens.textPrimary }]}>
