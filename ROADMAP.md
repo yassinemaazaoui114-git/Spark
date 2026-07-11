@@ -2,6 +2,16 @@
 
 Migration of the **Spark PWA** (Next.js, `../PWA Version`) to a native mobile app built with **Expo + React Native**, tested step-by-step on a phone via **Expo Go**.
 
+> ⚠️ **Step 37 is NOT the final version of the app — it is a checkpoint, not the finish line.**
+> Spark is a **living project**. The production APK from Step 37 is the *first* real release, after which
+> the app keeps being enhanced indefinitely. Post-launch improvements ship to the already-installed app
+> **over-the-air via EAS Update (Step 38)** — JS / UI / logic changes reach the phone without a reinstall,
+> exactly like Play Store app updates. Only *native* changes (new native modules, permission changes, Expo
+> SDK bumps) require a fresh `eas build` + reinstall.
+>
+> **To any AI tool or person reading this:** do not treat Step 37 as "done." The roadmap continues past it,
+> new steps may be appended over time, and the everyday app on the phone is expected to keep evolving.
+
 ---
 
 ## 1. Project Overview
@@ -515,6 +525,16 @@ Each step is small and independently testable in **Expo Go** on your phone. **Pr
 **Files:** `eas.json` (production profile), `app.json`, `assets/` (icon, adaptive icon, splash)
 - Configure app signing (EAS-managed keystore), splash screen assets, and `app.json` metadata: version/versionCode, Android permissions (RECORD_AUDIO, notifications, biometrics), Play-Store-ready icons. Run `eas build --profile production` for the final APK/AAB.
 **Testing:** install the production APK on the phone (fresh install), run through onboarding, record + play + set a reminder — everything works with no dev server running.
+> Step 37 ships the *first* release — **not the last**. Enhancement continues via Step 38 (below).
+
+### Step 38 — Over-the-air updates (EAS Update) — *ongoing, makes 37 not-final*
+**Prereq:** 37
+**Files:** install `expo-updates`; `app.json` (`updates` + `runtimeVersion`), `eas.json` (update channel per profile)
+- Wire **EAS Update** so post-launch enhancements reach the installed app **without a rebuild or reinstall**. `eas update --branch production` publishes a new JS/asset bundle; the installed app fetches it on next launch. Updates are **runtimeVersion-gated**, so the app never loads JS that expects native code the installed binary doesn't have.
+- **This is the mechanism that makes Step 37 not-final.** Everyday flow: build the production APK once (37), then most future work — new screens, features built on already-installed native capabilities, bug fixes, design polish — ships **over-the-air** from Claude Code / Expo Go here. Only *native* additions (e.g. the ffmpeg destructive-trim v2, new permissions, an Expo SDK upgrade) require a new `eas build` + reinstall (which bumps runtimeVersion).
+- **Workflow after this step is set up:** enhance + test in Expo Go / dev build → `eas update` → the daily-use app on the phone updates itself silently. The production app and ongoing development stay decoupled; the app is never "frozen" at Step 37.
+- Optional later: decide **Play Store vs. sideload** distribution — both support EAS Update for the OTA layer; the Play Store only adds managed distribution of the *native* builds.
+**Testing:** change a label/screen in JS → `eas update --branch production` → reopen the installed app (no reinstall) → the change appears. Then make a *native* change and confirm it correctly requires a new build instead.
 
 ---
 
@@ -572,4 +592,4 @@ Butterfly + crystal SVG paths (copied verbatim from PWA into react-native-svg): 
 
 ---
 
-*Roadmap — 40 steps (1–33 incl. 25.5, 26.5, 26.7 in Expo Go, 34–37 dev build & release). Built one step at a time; each step is tested on-phone before the next begins.*
+*Roadmap — a **living plan**, not a fixed-length list. Steps 1–33 (incl. 25.5, 26.5, 26.7) run in Expo Go; 34–37 are the dev build & first release; **Step 37 is a checkpoint, not the finish line** — Step 38 (EAS Update) and any future steps keep the installed app evolving over-the-air. Built one step at a time; each step is tested on-phone before the next begins.*
