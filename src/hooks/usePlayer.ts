@@ -1,8 +1,14 @@
 import Constants, { ExecutionEnvironment } from 'expo-constants'
-import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio'
+import { createAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audio'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { clearActive, registerActive } from '@/lib/playback-manager'
+
+// Per-card playback. Performance-critical detail (Step 26.5): the native
+// player is created lazily on FIRST interaction — mounting a list of 100
+// cards creates zero native players. Released manually on unmount.
+
+export const PLAYBACK_SPEEDS = [0.75, 1, 1.25, 1.5, 2] as const
 
 // Expo Go lacks the native AudioControlsService the lock-screen API needs —
 // it exists only in dev/production builds where the expo-audio config plugin
@@ -10,10 +16,10 @@ import { clearActive, registerActive } from '@/lib/playback-manager'
 const LOCK_SCREEN_SUPPORTED =
   Constants.executionEnvironment !== ExecutionEnvironment.StoreClient
 
-// Per-card playback — lazy-loads the source on first play, registers with
-// the singleton manager, exposes scrub/skip/speed (PWA RecordCard port).
-
-export const PLAYBACK_SPEEDS = [0.75, 1, 1.25, 1.5, 2] as const
+export type PlayerMeta = {
+  title: string
+  folderName?: string
+}
 
 export type Player = {
   playing: boolean
@@ -26,9 +32,18 @@ export type Player = {
   cycleSpeed: () => void
 }
 
-export type PlayerMeta = {
-  title: string
-  folderName?: string
+function applySpeed(player: AudioPlayer, rate: number) {
+  // expo-audio exposes setPlaybackRate (with pitch correction) on native;
+  // fall back to the playbackRate property just in case.
+  const p = player as unknown as {
+    setPlaybackRate?: (rate: number, quality?: string) => void
+    playbackRate: number
+  }
+  if (typeof p.setPlaybackRate === 'function') {
+    p.setPlaybackRate(rate, 'high')
+  } else {
+    p.playbackRate = rate
+  }
 }
 
 export function usePlayer(
@@ -37,47 +52,54 @@ export function usePlayer(
   storedDurationSec: number,
   meta?: PlayerMeta
 ): Player {
-  const player = useAudioPlayer(null)
-  const status = useAudioPlayerStatus(player)
-  const loadedRef = useRef(false)
+  const playerRef = useRef<AudioPlayer | null>(null)
+  const statusSubRef = useRef<{ remove: () => void } | null>(null)
+
+  const [playing, setPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [nativeDuration, setNativeDuration] = useState(0)
   const [speedIdx, setSpeedIdx] = useState(1) // default 1×
 
-  // Release the manager slot when the card unmounts (the hook releases the
-  // native player itself).
+  // Create the native player on first use and subscribe to its status.
+  const ensurePlayer = useCallback((): AudioPlayer => {
+    if (!playerRef.current) {
+      const player = createAudioPlayer(uri)
+      statusSubRef.current = player.addListener(
+        'playbackStatusUpdate',
+        (status: AudioStatus) => {
+          setPlaying(status.playing)
+          setCurrentTime(status.currentTime)
+          if (status.duration > 0) setNativeDuration(status.duration)
+        }
+      )
+      playerRef.current = player
+    }
+    return playerRef.current
+  }, [uri])
+
+  // Manual release on unmount (no hook manages this player's lifetime).
   useEffect(() => {
-    return () => clearActive(recordId)
+    return () => {
+      clearActive(recordId)
+      statusSubRef.current?.remove()
+      statusSubRef.current = null
+      try {
+        playerRef.current?.remove()
+      } catch {
+        // already released
+      }
+      playerRef.current = null
+    }
   }, [recordId])
 
-  const ensureLoaded = useCallback(() => {
-    if (!loadedRef.current) {
-      player.replace(uri)
-      loadedRef.current = true
-    }
-  }, [player, uri])
-
-  const applySpeed = useCallback(
-    (rate: number) => {
-      // expo-audio exposes setPlaybackRate (with pitch correction) on native;
-      // fall back to the playbackRate property just in case.
-      const p = player as unknown as {
-        setPlaybackRate?: (rate: number, quality?: string) => void
-        playbackRate: number
-      }
-      if (typeof p.setPlaybackRate === 'function') {
-        p.setPlaybackRate(rate, 'high')
-      } else {
-        p.playbackRate = rate
-      }
-    },
-    [player]
-  )
+  const duration = nativeDuration > 0 ? nativeDuration : storedDurationSec
 
   const toggle = useCallback(async () => {
-    if (status.playing) {
+    const player = ensurePlayer()
+    if (playing) {
       player.pause()
       return
     }
-    ensureLoaded()
     registerActive(recordId, () => player.pause())
     // Lock-screen / notification metadata (PWA Media Session port).
     // Android also needs this for sustained background playback.
@@ -99,40 +121,41 @@ export function usePlayer(
       }
     }
     // Restart from the top when the last run finished
-    if (status.duration > 0 && status.currentTime >= status.duration - 0.1) {
+    if (nativeDuration > 0 && currentTime >= nativeDuration - 0.1) {
       await player.seekTo(0)
     }
-    applySpeed(PLAYBACK_SPEEDS[speedIdx])
+    applySpeed(player, PLAYBACK_SPEEDS[speedIdx])
     player.play()
-  }, [applySpeed, ensureLoaded, meta?.folderName, meta?.title, player, recordId, speedIdx, status])
+  }, [currentTime, ensurePlayer, meta?.folderName, meta?.title, nativeDuration, playing, recordId, speedIdx])
 
   const seekTo = useCallback(
     (sec: number) => {
-      ensureLoaded()
+      const player = ensurePlayer()
       player.seekTo(Math.max(0, sec))
+      setCurrentTime(Math.max(0, sec))
     },
-    [ensureLoaded, player]
+    [ensurePlayer]
   )
-
-  const duration = status.duration > 0 ? status.duration : storedDurationSec
 
   const skip = useCallback(
     (delta: number) => {
-      const next = Math.max(0, Math.min(duration, status.currentTime + delta))
+      const next = Math.max(0, Math.min(duration, currentTime + delta))
       seekTo(next)
     },
-    [duration, seekTo, status.currentTime]
+    [currentTime, duration, seekTo]
   )
 
   const cycleSpeed = useCallback(() => {
     const next = (speedIdx + 1) % PLAYBACK_SPEEDS.length
     setSpeedIdx(next)
-    applySpeed(PLAYBACK_SPEEDS[next])
-  }, [applySpeed, speedIdx])
+    if (playerRef.current) {
+      applySpeed(playerRef.current, PLAYBACK_SPEEDS[next])
+    }
+  }, [speedIdx])
 
   return {
-    playing: status.playing,
-    currentTime: status.currentTime,
+    playing,
+    currentTime,
     duration,
     speed: PLAYBACK_SPEEDS[speedIdx],
     toggle,

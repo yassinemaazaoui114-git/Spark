@@ -17,6 +17,7 @@ LogBox.ignoreLogs([
 
 import { ToastProvider } from '@/context/ToastContext'
 import { setPlaybackAudioMode } from '@/lib/audio-mode'
+import { TRASH_RETENTION_MS, purgeOldDeleted } from '@/storage/trash'
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext'
 
 function AppStack() {
@@ -35,9 +36,10 @@ function AppStack() {
 }
 
 export default function RootLayout() {
-  // App-wide audio session: silent-switch playback + background playback
+  // App-wide audio session + trash auto-purge (items older than 30 days)
   useEffect(() => {
     setPlaybackAudioMode()
+    purgeOldDeleted(Date.now() - TRASH_RETENTION_MS).catch(() => {})
   }, [])
 
   return (

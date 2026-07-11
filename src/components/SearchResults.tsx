@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { StyleSheet, Text, View } from 'react-native'
 
+import { EmptyState } from '@/components/EmptyState'
+import { LazyList } from '@/components/LazyList'
 import { RecordCard } from '@/components/RecordCard'
 import { SortMenu } from '@/components/SortMenu'
 import type { Search } from '@/hooks/useSearch'
@@ -42,21 +44,19 @@ export function SearchResults({ search, folders, onChanged }: Props) {
       </View>
 
       {results.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={[styles.emptyTitle, { color: tokens.textSecondary }]}>{emptyTitle}</Text>
-          <Text style={[styles.emptyMessage, { color: tokens.textMuted }]}>{emptyMessage}</Text>
-        </View>
+        <EmptyState title={emptyTitle} message={emptyMessage} />
       ) : (
-        <View style={styles.list}>
-          {results.map((r) => (
+        <LazyList
+          items={results}
+          keyExtractor={(r) => r.id}
+          renderItem={(r) => (
             <RecordCard
-              key={r.id}
               record={r}
               folderName={folders.find((f) => f.id === r.folderId)?.name || 'Unknown'}
               onChanged={onChanged}
             />
-          ))}
-        </View>
+          )}
+        />
       )}
     </View>
   )
@@ -72,18 +72,6 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 13,
     fontWeight: '500',
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxl * 2,
-    gap: 6,
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  emptyMessage: {
-    fontSize: 12,
   },
   list: {
     gap: spacing.sm,

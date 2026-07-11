@@ -1,6 +1,8 @@
 import { Clock, Hash, Pin, X } from 'lucide-react-native'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
+import { EmptyState } from '@/components/EmptyState'
+import { LazyList } from '@/components/LazyList'
 import { RecordCard } from '@/components/RecordCard'
 import { SortMenu } from '@/components/SortMenu'
 import type { RecordFilters } from '@/hooks/useRecordFilters'
@@ -70,25 +72,19 @@ export function FilteredResults({ filters, folders, onChanged }: Props) {
       </View>
 
       {filters.results.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={[styles.emptyTitle, { color: tokens.textSecondary }]}>
-            No records match
-          </Text>
-          <Text style={[styles.emptyMessage, { color: tokens.textMuted }]}>
-            Try a different filter combination.
-          </Text>
-        </View>
+        <EmptyState title="No records match" message="Try a different filter combination." />
       ) : (
-        <View style={styles.list}>
-          {filters.results.map((r) => (
+        <LazyList
+          items={filters.results}
+          keyExtractor={(r) => r.id}
+          renderItem={(r) => (
             <RecordCard
-              key={r.id}
               record={r}
               folderName={folders.find((f) => f.id === r.folderId)?.name || 'Unknown'}
               onChanged={onChanged}
             />
-          ))}
-        </View>
+          )}
+        />
       )}
     </View>
   )
@@ -126,18 +122,6 @@ const styles = StyleSheet.create({
   },
   clearText: {
     fontSize: 11,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxl * 2,
-    gap: 6,
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  emptyMessage: {
-    fontSize: 12,
   },
   list: {
     gap: spacing.sm,

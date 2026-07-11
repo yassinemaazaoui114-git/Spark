@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { haptic } from '@/lib/haptics'
+import { useSelection } from '@/lib/selection'
 import { emitTabReset, type TabName } from '@/lib/tab-events'
 import { useTheme } from '@/theme/ThemeContext'
 import { radius } from '@/theme/tokens'
@@ -34,6 +35,11 @@ type Props = {
 export function TabBar({ state, navigation }: Props) {
   const insets = useSafeAreaInsets()
   const { theme, tokens } = useTheme()
+
+  // Gmail-style: the tab bar steps aside while multi-select is active so the
+  // SelectionToolbar takes its place (and its taps).
+  const sel = useSelection()
+  if (sel.isActive()) return null
 
   return (
     <View

@@ -1,6 +1,7 @@
 import {
   Archive,
   ArchiveRestore,
+  CheckSquare,
   Folder as FolderIcon,
   Mic,
   Pencil,
@@ -34,6 +35,7 @@ type Props = {
   onTrim: () => void
   onArchive: () => void
   onDelete: () => void
+  onSelect: () => void
 }
 
 type ActionRow = {
@@ -57,6 +59,7 @@ export function RecordActionSheet({
   onTrim,
   onArchive,
   onDelete,
+  onSelect,
 }: Props) {
   const { tokens } = useTheme()
   const insets = useSafeAreaInsets()
@@ -65,6 +68,14 @@ export function RecordActionSheet({
   const isTextNote = record.type === 'text'
 
   const actions: ActionRow[] = [
+    {
+      key: 'select',
+      label: 'Select',
+      Icon: CheckSquare,
+      chipColor: 'rgba(139,92,246,0.15)',
+      iconColor: '#c4b5fd',
+      onPress: onSelect,
+    },
     {
       key: 'pin',
       label: record.pinned ? 'Unpin from top' : 'Pin to top',

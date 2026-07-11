@@ -1,22 +1,53 @@
-import { useEffect, useState } from 'react'
+import { useFocusEffect } from 'expo-router'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ButterflyBackground } from '@/components/ButterflyBackground'
 import { FadeView } from '@/components/FadeView'
-import { GlassCard } from '@/components/GlassCard'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
+import { AboutSection } from '@/components/settings/AboutSection'
+import { AppearanceSection } from '@/components/settings/AppearanceSection'
+import { DataSection } from '@/components/settings/DataSection'
+import { PrivacyBanner } from '@/components/settings/PrivacyBanner'
+import { RecentlyDeletedCard } from '@/components/settings/RecentlyDeletedCard'
+import { SecuritySection } from '@/components/settings/SecuritySection'
 import { SmartViewsSection } from '@/components/settings/SmartViewsSection'
+import { StatsCard } from '@/components/settings/StatsCard'
 import { TagsSection } from '@/components/settings/TagsSection'
+import { useToast } from '@/context/ToastContext'
+import { computeStats } from '@/lib/stats'
 import { onTabReset } from '@/lib/tab-events'
+import { getFolders } from '@/storage/folders'
+import { getRecords } from '@/storage/records'
+import { getAllTags } from '@/storage/tags'
 import { useTheme } from '@/theme/ThemeContext'
 import { spacing } from '@/theme/tokens'
+import type { Folder, VoiceRecord } from '@/types'
 
 export default function SettingsScreen() {
   const { tokens } = useTheme()
-  // Re-tap on Settings scrolls to top once this becomes a ScrollView (Step 25).
+  const { showToast } = useToast()
+
+  const [records, setRecords] = useState<VoiceRecord[]>([])
+  const [folders, setFolders] = useState<Folder[]>([])
+  const [tags, setTags] = useState<string[]>([])
+
+  // Re-tap on Settings resets (remount scrolls back to top)
   const [resetKey, setResetKey] = useState(0)
   useEffect(() => onTabReset('settings', () => setResetKey((k) => k + 1)), [])
+
+  useFocusEffect(
+    useCallback(() => {
+      ;(async () => {
+        setRecords(await getRecords())
+        setFolders(await getFolders())
+        setTags(await getAllTags())
+      })()
+    }, [])
+  )
+
+  const stats = useMemo(() => computeStats(records, folders), [records, folders])
 
   return (
     <View style={styles.root}>
@@ -26,20 +57,47 @@ export default function SettingsScreen() {
           <ScrollView contentContainerStyle={styles.content}>
             <Text style={[styles.title, { color: tokens.textPrimary }]}>Settings</Text>
 
-            {/* Archive + smart views (Step 23) */}
-            <SmartViewsSection />
+            <PrivacyBanner />
 
-            {/* Tags management (Step 19) — the full settings page assembles
-                around these in Step 25 */}
-            <View style={{ marginTop: spacing.lg }}>
+            <View style={styles.section}>
+              <StatsCard
+                stats={stats}
+                onPress={() => showToast('Full stats arrive in Step 28')}
+              />
+            </View>
+
+            {/* Archive card + smart views grid */}
+            <View style={styles.section}>
+              <SmartViewsSection />
+            </View>
+
+            <View style={styles.section}>
+              <RecentlyDeletedCard />
+            </View>
+
+            <View style={styles.section}>
+              <AppearanceSection />
+            </View>
+
+            <View style={styles.section}>
+              <SecuritySection />
+            </View>
+
+            <View style={styles.section}>
               <TagsSection />
             </View>
 
-            <GlassCard style={{ marginTop: spacing.lg }} variant="subtle">
-              <Text style={[styles.hint, { color: tokens.textMuted }]}>
-                Full settings page arrives in Step 25.
-              </Text>
-            </GlassCard>
+            <View style={styles.section}>
+              <DataSection
+                recordCount={records.length}
+                folderCount={folders.length}
+                tagCount={tags.length}
+              />
+            </View>
+
+            <View style={styles.section}>
+              <AboutSection />
+            </View>
           </ScrollView>
         </FadeView>
       </SafeAreaView>
@@ -64,7 +122,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: spacing.lg,
   },
-  hint: {
-    fontSize: 12,
+  section: {
+    marginTop: spacing.lg,
   },
 })

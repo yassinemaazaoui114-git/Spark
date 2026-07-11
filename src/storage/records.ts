@@ -1,10 +1,9 @@
 import type { VoiceRecord } from '@/types'
 
 import { getDb } from './db'
-import { deleteRecordingFile } from './files'
 import { addTags } from './tags'
 
-type RecordRow = {
+export type RecordRow = {
   id: string
   name: string
   folderId: string
@@ -18,9 +17,10 @@ type RecordRow = {
   textContent: string
   trimStart: number | null
   trimEnd: number | null
+  deletedAt: number | null
 }
 
-function rowToRecord(r: RecordRow): VoiceRecord {
+export function rowToRecord(r: RecordRow): VoiceRecord {
   let tags: string[] = []
   try {
     const parsed = JSON.parse(r.tags)
@@ -42,14 +42,15 @@ function rowToRecord(r: RecordRow): VoiceRecord {
     textContent: r.textContent,
     trimStart: r.trimStart,
     trimEnd: r.trimEnd,
+    deletedAt: r.deletedAt ?? null,
   }
 }
 
-// All records — pinned first, then newest first (PWA default sort).
+// All active records — soft-deleted excluded, pinned first, newest first.
 export async function getRecords(): Promise<VoiceRecord[]> {
   const db = await getDb()
   const rows = await db.getAllAsync<RecordRow>(
-    'SELECT * FROM records ORDER BY pinned DESC, createdAt DESC'
+    'SELECT * FROM records WHERE deletedAt IS NULL ORDER BY pinned DESC, createdAt DESC'
   )
   return rows.map(rowToRecord)
 }
@@ -74,13 +75,13 @@ export async function getRecordsByTag(tag: string): Promise<VoiceRecord[]> {
 export async function saveRecord(record: VoiceRecord): Promise<void> {
   const db = await getDb()
   await db.runAsync(
-    `INSERT INTO records (id, name, folderId, audioUri, durationSec, createdAt, pinned, tags, archived, type, textContent, trimStart, trimEnd)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO records (id, name, folderId, audioUri, durationSec, createdAt, pinned, tags, archived, type, textContent, trimStart, trimEnd, deletedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name, folderId = excluded.folderId, audioUri = excluded.audioUri,
        durationSec = excluded.durationSec, pinned = excluded.pinned, tags = excluded.tags,
        archived = excluded.archived, type = excluded.type, textContent = excluded.textContent,
-       trimStart = excluded.trimStart, trimEnd = excluded.trimEnd`,
+       trimStart = excluded.trimStart, trimEnd = excluded.trimEnd, deletedAt = excluded.deletedAt`,
     [
       record.id,
       record.name,
@@ -95,6 +96,7 @@ export async function saveRecord(record: VoiceRecord): Promise<void> {
       record.textContent,
       record.trimStart,
       record.trimEnd,
+      record.deletedAt ?? null,
     ]
   )
   if (record.tags.length > 0) {
@@ -102,25 +104,31 @@ export async function saveRecord(record: VoiceRecord): Promise<void> {
   }
 }
 
-// Delete the DB row and its audio file (unless another record shares the
-// file — "save trim as copy" reuses the original audio).
-export async function deleteRecord(id: string): Promise<void> {
-  const db = await getDb()
-  const record = await getRecord(id)
-  if (!record) return
-  await db.runAsync('DELETE FROM records WHERE id = ?', [id])
-  if (record.audioUri) {
-    const shared = await db.getFirstAsync<{ n: number }>(
-      'SELECT COUNT(*) AS n FROM records WHERE audioUri = ?',
-      [record.audioUri]
-    )
-    if (!shared || shared.n === 0) {
-      deleteRecordingFile(record.audioUri)
-    }
-  }
-}
-
 export async function moveRecord(id: string, folderId: string): Promise<void> {
   const db = await getDb()
   await db.runAsync('UPDATE records SET folderId = ? WHERE id = ?', [folderId, id])
+}
+
+// ---------- Batch operations (multi-select) ----------
+
+function placeholders(n: number): string {
+  return Array(n).fill('?').join(',')
+}
+
+export async function batchMoveRecords(ids: string[], folderId: string): Promise<void> {
+  if (ids.length === 0) return
+  const db = await getDb()
+  await db.runAsync(
+    `UPDATE records SET folderId = ? WHERE id IN (${placeholders(ids.length)})`,
+    [folderId, ...ids]
+  )
+}
+
+export async function batchSetArchived(ids: string[], archived: boolean): Promise<void> {
+  if (ids.length === 0) return
+  const db = await getDb()
+  await db.runAsync(
+    `UPDATE records SET archived = ? WHERE id IN (${placeholders(ids.length)})`,
+    [archived ? 1 : 0, ...ids]
+  )
 }

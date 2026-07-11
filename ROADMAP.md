@@ -200,7 +200,7 @@ Default seeded folders: Inbox/Unsorted (`inbox`, default), Video ideas, Blog pos
 
 Each step is small and independently testable in **Expo Go** on your phone. **Prereq:** column shows which steps must be done first.
 
-> Phases: Foundation (1–5) → Recording core (6–10) → Playback & cards (11–13) → Folders & organization (14–19) → Search & filters (20–24) → Settings & polish (25, 25.5 Trash, 26, 26.5 Perf, 27–32) → Reminders (33) → Dev build & release (34–37)
+> Phases: Foundation (1–5) → Recording core (6–10) → Playback & cards (11–13) → Folders & organization (14–19) → Search & filters (20–24) → Settings & polish (25, 25.5 Trash, 26, 26.5 Perf, 26.7 Multi-select, 27–32) → Reminders (33) → Dev build & release (34–37)
 
 ---
 
@@ -419,10 +419,19 @@ Each step is small and independently testable in **Expo Go** on your phone. **Pr
 ### Step 26.5 — Performance pass: lazy players + list virtualization *(added 2026-07-11 — Yassine noticed heavy lists mount visibly slower)*
 **Prereq:** 26 (it reworks the same lists that get RefreshControl/skeletons there)
 **Files:** `src/hooks/usePlayer.ts`, list rendering in FolderDetail / FilteredResults / SearchResults / RecentlyDeletedView
-- **Lazy player creation** (biggest win): today every RecordCard creates a native audio player at mount even if never played — switch `usePlayer` to expo-audio's imperative `createAudioPlayer()` on first play, with manual release on unmount. Zero native players for cards that are never played.
-- **Virtualize long lists**: replace ScrollView+map with FlatList for folder detail, filtered results, and search results so only visible cards mount (Recent's 3 cards stay as-is).
+- **Lazy player creation** (biggest win): today every RecordCard creates a native audio player at mount even if never played — switch `usePlayer` to expo-audio's imperative `createAudioPlayer()` on first play, with manual release (`player.remove()`) + status via the `playbackStatusUpdate` event. Zero native players for cards that are never played.
+- **Progressive list mounting** (`LazyList`): FlatList cannot actually virtualize nested inside our ScrollView screens, so long lists (folder detail, filtered, search, smart views) mount in frame-sized batches (12 rows per frame) instead of one giant mount. Revisit true FlatList-as-scroll-root only if lists ever reach a scale where memory (not mount time) hurts.
 - Placed right after Step 26 so it lands before real data volume grows, and before the heavy Settings-era views (stats, trash) build on the same lists.
 **Testing:** open a folder with 30+ records → noticeably faster mount than before; scrolling stays smooth; playback, expand, action sheet, and pull-to-refresh all still work on virtualized lists; play → pause → navigate away → no crash (player release is clean).
+
+### Step 26.7 — Multi-select & batch actions *(added 2026-07-12 by Yassine's request — deleting records one by one felt slow)*
+**Prereq:** 26.5 (built on the finalized/virtualized lists), 25.5 (batch trash)
+**Files:** `src/components/RecordCard.tsx` (selection mode), `src/hooks/useSelection.ts`, `src/components/SelectionToolbar.tsx`, list screens
+- **Enter selection mode**: "Select" action added to the record action sheet (or long-press while already in a list header's select affordance). In selection mode, cards show a checkbox instead of the play/pen icon; tapping toggles selection; playback/expand disabled while selecting.
+- **Selection toolbar** (replaces the tab bar or floats above it): "N selected", Select all, then batch actions: **Move to folder** (one folder picker for all), **Archive/Unarchive**, **Move to Trash** (single confirm with count), Cancel.
+- Batch operations run through the existing storage functions in a loop (or one SQL `IN (...)` update for speed).
+- Works in every record list: folder detail, filtered, search results, smart views, and the trash screen (batch Restore / Delete Forever there).
+**Testing:** select 3 records across a folder → batch Move → all land in the target folder; batch Trash with one confirm → all in Recently Deleted; Select all works; Cancel exits cleanly; in the trash screen, batch Restore returns everything at once.
 
 ### Step 27 — Light theme
 **Prereq:** 25
@@ -563,4 +572,4 @@ Butterfly + crystal SVG paths (copied verbatim from PWA into react-native-svg): 
 
 ---
 
-*Roadmap — 39 steps (1–33 incl. 25.5 and 26.5 in Expo Go, 34–37 dev build & release). Built one step at a time; each step is tested on-phone before the next begins.*
+*Roadmap — 40 steps (1–33 incl. 25.5, 26.5, 26.7 in Expo Go, 34–37 dev build & release). Built one step at a time; each step is tested on-phone before the next begins.*

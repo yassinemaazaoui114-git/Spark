@@ -12,16 +12,18 @@ import {
   Scissors,
   Share2,
 } from 'lucide-react-native'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
 import { DeleteRecordDialog } from '@/components/DeleteRecordDialog'
+import { FlipAvatar } from '@/components/FlipAvatar'
 import { MoveRecordDialog } from '@/components/MoveRecordDialog'
 import { RecordActionSheet } from '@/components/RecordActionSheet'
 import { RenameRecordDialog } from '@/components/RenameRecordDialog'
 import { useToast } from '@/context/ToastContext'
 import { usePlayer } from '@/hooks/usePlayer'
 import { haptic } from '@/lib/haptics'
+import { useSelection } from '@/lib/selection'
 import { shareRecord } from '@/lib/share-record'
 import {
   formatDuration,
@@ -55,7 +57,23 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
   const [showRename, setShowRename] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
 
+  // Multi-select
+  const sel = useSelection()
+  const selecting = sel.isActive()
+  const isSelected = sel.isSelected(record.id)
+  useEffect(() => {
+    sel.registerVisible(record.id, { archived: record.archived })
+    return () => sel.unregisterVisible(record.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record.id, record.archived])
+
+  const toggleSelect = () => {
+    haptic('light')
+    sel.toggle(record.id, { archived: record.archived })
+  }
+
   const openActions = () => {
+    if (selecting) return
     haptic('medium')
     setShowActions(true)
   }
@@ -104,43 +122,67 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
     <View
       style={[
         styles.card,
-        { backgroundColor: tokens.surfaceSubtle, borderColor: tokens.border },
+        isSelected
+          ? styles.cardSelected
+          : { backgroundColor: tokens.surfaceSubtle, borderColor: tokens.border },
       ]}
     >
       <View style={styles.topRow}>
-        {/* Leading: play button (audio) or pen icon (text) */}
-        {isTextNote ? (
-          <View style={styles.penCircle}>
-            <PenLine size={16} color="#93c5fd" strokeWidth={2} />
-          </View>
-        ) : (
-          <Pressable
-            onPress={() => {
-              haptic('light')
-              player.toggle()
-            }}
-            style={({ pressed }) => [
-              styles.playCircle,
-              { backgroundColor: tokens.surfaceStrong },
-              pressed && { opacity: 0.7 },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel={player.playing ? 'Pause' : 'Play'}
-          >
-            {player.playing ? (
-              <Pause size={16} color={tokens.textPrimary} strokeWidth={2} />
-            ) : (
-              <Play size={16} color={tokens.textPrimary} strokeWidth={2} style={{ marginLeft: 2 }} />
-            )}
-          </Pressable>
-        )}
+        {/* Leading avatar — coin-flips into a check circle while selected.
+            Tap: play (audio) / expand (text), or toggle in selection mode.
+            Long-press: start selection. */}
+        <FlipAvatar
+          selected={isSelected}
+          accessibilityLabel={
+            selecting ? 'Toggle selection' : player.playing ? 'Pause' : isTextNote ? 'Note' : 'Play'
+          }
+          onPress={() => {
+            if (selecting) {
+              toggleSelect()
+              return
+            }
+            if (isTextNote) {
+              setExpanded((x) => !x)
+              return
+            }
+            haptic('light')
+            player.toggle()
+          }}
+          onLongPress={() => {
+            if (selecting) {
+              toggleSelect()
+              return
+            }
+            haptic('medium')
+            sel.start(record.id, { archived: record.archived })
+          }}
+        >
+          {isTextNote ? (
+            <View style={styles.penCircle}>
+              <PenLine size={16} color="#93c5fd" strokeWidth={2} />
+            </View>
+          ) : (
+            <View style={[styles.playCircle, { backgroundColor: tokens.surfaceStrong }]}>
+              {player.playing ? (
+                <Pause size={16} color={tokens.textPrimary} strokeWidth={2} />
+              ) : (
+                <Play size={16} color={tokens.textPrimary} strokeWidth={2} style={{ marginLeft: 2 }} />
+              )}
+            </View>
+          )}
+        </FlipAvatar>
 
-        {/* Body: name + timestamp + meta + tags. Tap toggles expand. */}
+        {/* Body: name + timestamp + meta + tags. Tap toggles expand
+            (or the selection while multi-selecting). */}
         <Pressable
           onPress={() => {
+            if (selecting) {
+              toggleSelect()
+              return
+            }
             setExpanded((x) => !x)
           }}
-          onLongPress={openActions}
+          onLongPress={selecting ? toggleSelect : openActions}
           delayLongPress={200}
           style={styles.body}
         >
@@ -175,20 +217,22 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
           )}
         </Pressable>
 
-        {/* More button — opens the action sheet */}
-        <Pressable
-          onPress={openActions}
-          hitSlop={8}
-          style={styles.moreBtn}
-          accessibilityRole="button"
-          accessibilityLabel="More actions"
-        >
-          <MoreVertical size={16} color={tokens.textFaint} strokeWidth={2} />
-        </Pressable>
+        {/* More button — opens the action sheet (hidden while selecting) */}
+        {!selecting && (
+          <Pressable
+            onPress={openActions}
+            hitSlop={8}
+            style={styles.moreBtn}
+            accessibilityRole="button"
+            accessibilityLabel="More actions"
+          >
+            <MoreVertical size={16} color={tokens.textFaint} strokeWidth={2} />
+          </Pressable>
+        )}
       </View>
 
       {/* Expanded: full text for notes, playback controls for audio */}
-      {expanded && (
+      {expanded && !selecting && (
         <View style={[styles.expandArea, { borderTopColor: tokens.border }]}>
           {isTextNote ? (
             <ScrollView
@@ -326,6 +370,7 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
         onTrim={() => showToast('Trim arrives in Step 32')}
         onArchive={handleToggleArchive}
         onDelete={() => setShowDelete(true)}
+        onSelect={() => sel.start(record.id, { archived: record.archived })}
       />
 
       <MoveRecordDialog
@@ -363,6 +408,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: spacing.md,
+  },
+  cardSelected: {
+    backgroundColor: 'rgba(139,92,246,0.15)',
+    borderColor: 'rgba(167,139,250,0.4)',
   },
   topRow: {
     flexDirection: 'row',

@@ -2,6 +2,8 @@ import { Archive, Clock, Sparkles, X } from 'lucide-react-native'
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 
+import { EmptyState } from '@/components/EmptyState'
+import { LazyList } from '@/components/LazyList'
 import { RecordCard } from '@/components/RecordCard'
 import { SortMenu } from '@/components/SortMenu'
 import type { SmartFolder } from '@/lib/smart-folder'
@@ -85,27 +87,26 @@ export function SmartFolderView({ smart, records, folders, onClear, onChanged }:
       </View>
 
       {results.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={[styles.emptyTitle, { color: tokens.textSecondary }]}>
-            {smart === 'archive' ? 'Archive is empty' : 'Nothing here yet'}
-          </Text>
-          <Text style={[styles.emptyMessage, { color: tokens.textMuted }]}>
-            {smart === 'archive'
+        <EmptyState
+          title={smart === 'archive' ? 'Archive is empty' : 'Nothing here yet'}
+          message={
+            smart === 'archive'
               ? 'Archived records will appear here.'
-              : 'No records match this view.'}
-          </Text>
-        </View>
+              : 'No records match this view.'
+          }
+        />
       ) : (
-        <View style={styles.list}>
-          {results.map((r) => (
+        <LazyList
+          items={results}
+          keyExtractor={(r) => r.id}
+          renderItem={(r) => (
             <RecordCard
-              key={r.id}
               record={r}
               folderName={folders.find((f) => f.id === r.folderId)?.name || 'Unknown'}
               onChanged={onChanged}
             />
-          ))}
-        </View>
+          )}
+        />
       )}
     </View>
   )
@@ -143,18 +144,6 @@ const styles = StyleSheet.create({
   },
   clearText: {
     fontSize: 11,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxl * 2,
-    gap: 6,
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  emptyMessage: {
-    fontSize: 12,
   },
   list: {
     gap: spacing.sm,

@@ -4,6 +4,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { EditFolderDialog } from '@/components/EditFolderDialog'
+import { EmptyState } from '@/components/EmptyState'
+import { LazyList } from '@/components/LazyList'
 import { NewFolderDialog } from '@/components/NewFolderDialog'
 import { RecordCard } from '@/components/RecordCard'
 import { SortMenu } from '@/components/SortMenu'
@@ -55,7 +57,7 @@ export function FolderDetail({ folderId, folders, records, onNavigate, onChanged
     try {
       await deleteFolder(folder.id)
       haptic('warning')
-      showToast('Folder deleted')
+      showToast('Folder moved to Recently Deleted')
       onChanged()
       onNavigate(folder.parentId ?? null)
     } catch {
@@ -210,33 +212,23 @@ export function FolderDetail({ folderId, folders, records, onNavigate, onChanged
 
         {/* Records */}
         {folderRecords.length === 0 ? (
-          <View style={styles.empty}>
-            {subFolders.length > 0 ? (
-              <>
-                <Text style={[styles.emptyTitle, { color: tokens.textSecondary }]}>
-                  Only sub-folders here
-                </Text>
-                <Text style={[styles.emptyMessage, { color: tokens.textMuted }]}>
-                  This folder has no records of its own — open a sub-folder to see its contents.
-                </Text>
-              </>
-            ) : (
-              <>
-                <Text style={[styles.emptyTitle, { color: tokens.textSecondary }]}>
-                  No records yet
-                </Text>
-                <Text style={[styles.emptyMessage, { color: tokens.textMuted }]}>
-                  Tap the mic on the home screen to capture your first thought into this folder.
-                </Text>
-              </>
-            )}
-          </View>
+          subFolders.length > 0 ? (
+            <EmptyState
+              title="Only sub-folders here"
+              message="This folder has no records of its own — open a sub-folder to see its contents."
+            />
+          ) : (
+            <EmptyState
+              title="No records yet"
+              message="Tap the mic on the home screen to capture your first thought into this folder."
+            />
+          )
         ) : (
-          <View style={styles.recordList}>
-            {folderRecords.map((r) => (
-              <RecordCard key={r.id} record={r} onChanged={onChanged} />
-            ))}
-          </View>
+          <LazyList
+            items={folderRecords}
+            keyExtractor={(r) => r.id}
+            renderItem={(r) => <RecordCard record={r} onChanged={onChanged} />}
+          />
         )}
       </View>
 
@@ -261,9 +253,9 @@ export function FolderDetail({ folderId, folders, records, onNavigate, onChanged
 
       <ConfirmDialog
         visible={confirmDelete}
-        title={`Delete folder "${folder.name}"?`}
-        message={`Records move to Inbox. Sub-folders move to ${folder.parentId ? 'the parent folder' : 'the top level'}. This cannot be undone.`}
-        confirmLabel="Delete"
+        title={`Move "${folder.name}" to Recently Deleted?`}
+        message={`The folder and its records move to the trash — you can restore them for 30 days. Sub-folders move to ${folder.parentId ? 'the parent folder' : 'the top level'}.`}
+        confirmLabel="Move to Trash"
         destructive
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(false)}
@@ -372,21 +364,6 @@ const styles = StyleSheet.create({
   addSubFolderText: {
     fontSize: 12,
     flex: 1,
-  },
-  empty: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxl,
-    gap: 6,
-  },
-  emptyTitle: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  emptyMessage: {
-    fontSize: 12,
-    textAlign: 'center',
-    maxWidth: 240,
-    lineHeight: 18,
   },
   recordList: {
     gap: spacing.sm,

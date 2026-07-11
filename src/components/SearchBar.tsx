@@ -1,16 +1,20 @@
 import DateTimePicker from '@react-native-community/datetimepicker'
-import { AlignLeft, Calendar, Search, Type, X } from 'lucide-react-native'
+import { AlignLeft, Calendar, Plus, Search, Type, X } from 'lucide-react-native'
 import { useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 
+import { SaveSearchDialog } from '@/components/SaveSearchDialog'
+import { useToast } from '@/context/ToastContext'
 import type { Search as SearchState, SearchMode } from '@/hooks/useSearch'
 import { haptic } from '@/lib/haptics'
 import { formatDateKey } from '@/storage/format'
 import { useTheme } from '@/theme/ThemeContext'
 import { radius, spacing } from '@/theme/tokens'
+import type { Folder } from '@/types'
 
 // Search bar with a mode toggle cycling Name → Content → Date.
-// Name/Content: text input + recent-searches dropdown while focused-empty.
+// Name/Content: text input + dropdown (recent chips + saved searches) while
+// focused-empty, and a "Save this search" link while a query is active.
 // Date: native picker for the start date + optional end date row.
 
 const MODE_META: Record<SearchMode, { label: string; Icon: typeof Type; placeholder: string }> = {
@@ -21,19 +25,28 @@ const MODE_META: Record<SearchMode, { label: string; Icon: typeof Type; placehol
 
 type Props = {
   search: SearchState
+  /** For "in <folder>" hints on saved searches */
+  folders?: Folder[]
+  /** Called when a loaded saved search carries a folder scope */
+  onLoadSavedFolder?: (folderId: string) => void
 }
 
-export function SearchBar({ search }: Props) {
+export function SearchBar({ search, folders = [], onLoadSavedFolder }: Props) {
   const { tokens } = useTheme()
+  const { showToast } = useToast()
   const [focused, setFocused] = useState(false)
   const [showStartPicker, setShowStartPicker] = useState(false)
   const [showEndPicker, setShowEndPicker] = useState(false)
+  const [showSaveDialog, setShowSaveDialog] = useState(false)
   const blurTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { mode } = search
   const meta = MODE_META[mode]
-  const showRecents =
-    mode !== 'date' && focused && !search.query && search.recents.length > 0
+  const showDropdown =
+    mode !== 'date' &&
+    focused &&
+    !search.query &&
+    (search.recents.length > 0 || search.saved.length > 0)
 
 
   return (
@@ -165,43 +178,143 @@ export function SearchBar({ search }: Props) {
         </View>
       )}
 
-      {/* Recent searches dropdown */}
-      {showRecents && (
+      {/* "Save this search" link — while a text query is active */}
+      {mode !== 'date' && search.active && (
+        <Pressable
+          onPress={() => {
+            haptic('light')
+            setShowSaveDialog(true)
+          }}
+          hitSlop={6}
+          style={styles.saveLink}
+          accessibilityRole="button"
+          accessibilityLabel="Save this search"
+        >
+          <Plus size={11} color="#c4b5fd" strokeWidth={2} />
+          <Text style={styles.saveLinkText}>Save this search</Text>
+        </Pressable>
+      )}
+
+      {/* Dropdown: recent chips + saved searches */}
+      {showDropdown && (
         <View
           style={[
             styles.dropdown,
             { backgroundColor: tokens.sheet, borderColor: tokens.sheetBorder },
           ]}
         >
-          <View style={styles.dropdownHeader}>
-            <Text style={[styles.dropdownLabel, { color: tokens.textFaint }]}>RECENT</Text>
-            <Pressable onPress={search.clearRecents} hitSlop={6}>
-              <Text style={[styles.clearLink, { color: tokens.textFaint }]}>Clear</Text>
-            </Pressable>
-          </View>
-          <View style={styles.chips}>
-            {search.recents.map((s) => (
-              <Pressable
-                key={s}
-                onPress={() => {
-                  haptic('light')
-                  search.setQuery(s)
-                  search.submit(s)
-                }}
-                style={({ pressed }) => [
-                  styles.chip,
-                  {
-                    backgroundColor: pressed ? tokens.surface : tokens.surfaceSubtle,
-                    borderColor: tokens.border,
-                  },
+          {search.recents.length > 0 && (
+            <>
+              <View style={styles.dropdownHeader}>
+                <Text style={[styles.dropdownLabel, { color: tokens.textFaint }]}>RECENT</Text>
+                <Pressable onPress={search.clearRecents} hitSlop={6}>
+                  <Text style={[styles.clearLink, { color: tokens.textFaint }]}>Clear</Text>
+                </Pressable>
+              </View>
+              <View style={styles.chips}>
+                {search.recents.map((s) => (
+                  <Pressable
+                    key={s}
+                    onPress={() => {
+                      haptic('light')
+                      search.setQuery(s)
+                      search.submit(s)
+                    }}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      {
+                        backgroundColor: pressed ? tokens.surface : tokens.surfaceSubtle,
+                        borderColor: tokens.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, { color: tokens.textSecondary }]}>{s}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+
+          {search.saved.length > 0 && (
+            <>
+              <Text
+                style={[
+                  styles.dropdownLabel,
+                  { color: tokens.textFaint },
+                  search.recents.length > 0 && { marginTop: spacing.md },
                 ]}
               >
-                <Text style={[styles.chipText, { color: tokens.textSecondary }]}>{s}</Text>
-              </Pressable>
-            ))}
-          </View>
+                SAVED
+              </Text>
+              <View style={styles.savedList}>
+                {search.saved.map((s) => {
+                  const folderName = s.folderId
+                    ? folders.find((f) => f.id === s.folderId)?.name
+                    : null
+                  return (
+                    <View
+                      key={s.id}
+                      style={[
+                        styles.savedRow,
+                        { backgroundColor: tokens.surfaceSubtle, borderColor: tokens.border },
+                      ]}
+                    >
+                      <Pressable
+                        onPress={() => {
+                          haptic('light')
+                          search.loadSaved(s)
+                          if (s.folderId && onLoadSavedFolder) {
+                            onLoadSavedFolder(s.folderId)
+                          }
+                        }}
+                        style={styles.savedBody}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Run saved search ${s.name}`}
+                      >
+                        <Search size={12} color="#c4b5fd" strokeWidth={2} />
+                        <Text
+                          style={[styles.savedName, { color: tokens.textPrimary }]}
+                          numberOfLines={1}
+                        >
+                          {s.name}
+                        </Text>
+                        <Text
+                          style={[styles.savedMeta, { color: tokens.textFaint }]}
+                          numberOfLines={1}
+                        >
+                          {s.query}
+                          {s.mode === 'content' ? ' · content' : ''}
+                          {folderName ? ` · ${folderName}` : ''}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => search.deleteSaved(s.id)}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Delete saved search ${s.name}`}
+                      >
+                        <X size={12} color={tokens.textFaint} strokeWidth={2} />
+                      </Pressable>
+                    </View>
+                  )
+                })}
+              </View>
+            </>
+          )}
         </View>
       )}
+
+      <SaveSearchDialog
+        visible={showSaveDialog}
+        contextLine={`Save the current ${mode} search "${search.query.trim()}" so you can run it again with one tap.`}
+        onClose={() => setShowSaveDialog(false)}
+        onSave={async (name) => {
+          await search.saveCurrent(name)
+          setShowSaveDialog(false)
+          haptic('success')
+          showToast('Search saved')
+        }}
+      />
 
       {/* Native date pickers (v9 API: onValueChange on pick, onDismiss on cancel) */}
       {showStartPicker && (
@@ -324,5 +437,45 @@ const styles = StyleSheet.create({
   },
   chipText: {
     fontSize: 12,
+  },
+  saveLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    alignSelf: 'flex-start',
+    marginTop: spacing.sm,
+    paddingVertical: 2,
+  },
+  saveLinkText: {
+    fontSize: 12,
+    color: '#c4b5fd',
+  },
+  savedList: {
+    gap: 4,
+    marginTop: spacing.sm,
+  },
+  savedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm + 2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+  },
+  savedBody: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 0,
+  },
+  savedName: {
+    fontSize: 12,
+    fontWeight: '500',
+    flexShrink: 1,
+  },
+  savedMeta: {
+    fontSize: 10,
+    flexShrink: 1,
   },
 })

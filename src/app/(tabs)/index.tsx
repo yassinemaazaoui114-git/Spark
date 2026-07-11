@@ -1,6 +1,7 @@
+import { useFocusEffect } from 'expo-router'
 import { Clock, FolderPlus } from 'lucide-react-native'
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ButterflyBackground } from '@/components/ButterflyBackground'
@@ -9,11 +10,14 @@ import { FilterChips } from '@/components/FilterChips'
 import { FilteredResults } from '@/components/FilteredResults'
 import { GlassCard } from '@/components/GlassCard'
 import { NewFolderDialog } from '@/components/NewFolderDialog'
+import { OnlineIndicator } from '@/components/OnlineIndicator'
 import { RecordCard } from '@/components/RecordCard'
 import { RecordPanel } from '@/components/RecordPanel'
+import { HomeSkeleton } from '@/components/Skeleton'
 import { SaveRecordingDialog } from '@/components/SaveRecordingDialog'
 import { SearchBar } from '@/components/SearchBar'
 import { SearchResults } from '@/components/SearchResults'
+import { SelectionToolbar } from '@/components/SelectionToolbar'
 import { SmartFolderView } from '@/components/SmartFolderView'
 import { TextNoteDialog } from '@/components/TextNoteDialog'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
@@ -22,6 +26,7 @@ import { useRecordFilters } from '@/hooks/useRecordFilters'
 import { useRecorder, type FinishedRecording } from '@/hooks/useRecorder'
 import { useSearch } from '@/hooks/useSearch'
 import { haptic } from '@/lib/haptics'
+import { selection } from '@/lib/selection'
 import {
   getSmartFolder,
   onSmartFolderChange,
@@ -51,11 +56,25 @@ export default function RecordScreen() {
   const [records, setRecords] = useState<VoiceRecord[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
   const [allTags, setAllTags] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const refreshRecords = useCallback(async () => {
     setRecords(await getRecords())
     setFolders(await getFolders())
     setAllTags(await getAllTags())
+    setLoading(false)
   }, [])
+
+  // Pull-to-refresh
+  const onPullRefresh = useCallback(async () => {
+    setRefreshing(true)
+    haptic('medium')
+    await refreshRecords()
+    // Brief delay so the spinner is visible (PWA behavior)
+    await new Promise((r) => setTimeout(r, 400))
+    setRefreshing(false)
+    haptic('light')
+  }, [refreshRecords])
 
   // Global search + quick filters (home is never folder-scoped)
   const search = useSearch(records, null)
@@ -74,6 +93,7 @@ export default function RecordScreen() {
         search.reset()
         filters.reset()
         setSmartFolder(null)
+        selection.exit()
         setResetKey((k) => k + 1)
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -81,11 +101,16 @@ export default function RecordScreen() {
   )
 
   useEffect(() => {
-    ;(async () => {
-      await ensureSeedFolders().catch(() => {})
-      await refreshRecords()
-    })()
-  }, [refreshRecords])
+    ensureSeedFolders().catch(() => {})
+  }, [])
+
+  // Reload whenever the tab gains focus — records may have changed from the
+  // Folders tab, Settings, or the trash screen (e.g. a restore).
+  useFocusEffect(
+    useCallback(() => {
+      refreshRecords()
+    }, [refreshRecords])
+  )
 
   const handleReRecord = () => {
     setPending(null)
@@ -104,7 +129,24 @@ export default function RecordScreen() {
       <ButterflyBackground />
       <SafeAreaView style={styles.safe} edges={['top']}>
         <FadeView key={resetKey}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onPullRefresh}
+                tintColor="#c4b5fd"
+                colors={['#8b5cf6']}
+                progressBackgroundColor="#1a0b2e"
+              />
+            }
+          >
+            {loading ? (
+              <HomeSkeleton />
+            ) : (
+            <>
+            <OnlineIndicator />
             {/* Header */}
             <View style={styles.header}>
               <View>
@@ -130,7 +172,7 @@ export default function RecordScreen() {
             </View>
 
             {/* Search bar — visible on the home tab like the PWA */}
-            <SearchBar search={search} />
+            <SearchBar search={search} folders={folders} />
 
             {/* Inner cross-fade between the content views */}
             <FadeView
@@ -203,6 +245,8 @@ export default function RecordScreen() {
               </>
             )}
             </FadeView>
+            </>
+            )}
           </ScrollView>
         </FadeView>
       </SafeAreaView>
@@ -234,6 +278,8 @@ export default function RecordScreen() {
           refreshRecords()
         }}
       />
+
+      <SelectionToolbar onChanged={refreshRecords} />
     </View>
   )
 }

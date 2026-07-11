@@ -12,7 +12,7 @@ export const DEFAULT_FOLDERS: Omit<Folder, 'createdAt'>[] = [
   { id: 'random-sparks', name: 'Random sparks', icon: 'Sparkles', order: 4, parentId: null, color: '#8b5cf6' },
 ]
 
-type FolderRow = {
+export type FolderRow = {
   id: string
   name: string
   icon: string
@@ -21,9 +21,10 @@ type FolderRow = {
   ord: number
   parentId: string | null
   color: string
+  deletedAt: number | null
 }
 
-function rowToFolder(r: FolderRow): Folder {
+export function rowToFolder(r: FolderRow): Folder {
   return {
     id: r.id,
     name: r.name,
@@ -33,6 +34,7 @@ function rowToFolder(r: FolderRow): Folder {
     order: r.ord,
     parentId: r.parentId,
     color: r.color,
+    deletedAt: r.deletedAt ?? null,
   }
 }
 
@@ -50,9 +52,13 @@ export async function ensureSeedFolders(): Promise<Folder[]> {
   return getFolders()
 }
 
-export async function getFolders(): Promise<Folder[]> {
+export async function getFolders(includeDeleted = false): Promise<Folder[]> {
   const db = await getDb()
-  const rows = await db.getAllAsync<FolderRow>('SELECT * FROM folders ORDER BY ord ASC, createdAt ASC')
+  const rows = await db.getAllAsync<FolderRow>(
+    includeDeleted
+      ? 'SELECT * FROM folders ORDER BY ord ASC, createdAt ASC'
+      : 'SELECT * FROM folders WHERE deletedAt IS NULL ORDER BY ord ASC, createdAt ASC'
+  )
   return rows.map(rowToFolder)
 }
 
@@ -70,11 +76,12 @@ export async function getSubFolders(parentId: string): Promise<Folder[]> {
 export async function saveFolder(folder: Folder): Promise<void> {
   const db = await getDb()
   await db.runAsync(
-    `INSERT INTO folders (id, name, icon, createdAt, isDefault, ord, parentId, color)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO folders (id, name, icon, createdAt, isDefault, ord, parentId, color, deletedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name, icon = excluded.icon, isDefault = excluded.isDefault,
-       ord = excluded.ord, parentId = excluded.parentId, color = excluded.color`,
+       ord = excluded.ord, parentId = excluded.parentId, color = excluded.color,
+       deletedAt = excluded.deletedAt`,
     [
       folder.id,
       folder.name,
@@ -84,6 +91,7 @@ export async function saveFolder(folder: Folder): Promise<void> {
       folder.order,
       folder.parentId,
       folder.color,
+      folder.deletedAt ?? null,
     ]
   )
 }
@@ -98,16 +106,21 @@ export async function saveFolderOrder(orderedIds: string[]): Promise<void> {
   })
 }
 
-// Delete a folder: its records move to Inbox, its sub-folders move to the
-// deleted folder's parent (or top level).
+// Soft-delete a folder into Recently Deleted: the folder AND its records get
+// deletedAt stamped (restorable together for 30 days). Sub-folders still
+// promote to the grandparent immediately.
 export async function deleteFolder(folderId: string): Promise<void> {
   const db = await getDb()
   const deleted = await db.getFirstAsync<FolderRow>('SELECT * FROM folders WHERE id = ?', [folderId])
   if (!deleted) return
   const newParentId = deleted.parentId ?? null
+  const now = Date.now()
   await db.withTransactionAsync(async () => {
-    await db.runAsync("UPDATE records SET folderId = 'inbox' WHERE folderId = ?", [folderId])
+    await db.runAsync(
+      'UPDATE records SET deletedAt = ? WHERE folderId = ? AND deletedAt IS NULL',
+      [now, folderId]
+    )
     await db.runAsync('UPDATE folders SET parentId = ? WHERE parentId = ?', [newParentId, folderId])
-    await db.runAsync('DELETE FROM folders WHERE id = ?', [folderId])
+    await db.runAsync('UPDATE folders SET deletedAt = ? WHERE id = ?', [now, folderId])
   })
 }

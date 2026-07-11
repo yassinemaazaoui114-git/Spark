@@ -10,6 +10,8 @@ export type Folder = {
   order: number // sort position within same parent
   parentId: string | null // null = top-level
   color: string // hex accent
+  // Soft delete (Recently Deleted): null/undefined = active
+  deletedAt?: number | null
 }
 
 export type RecordType = 'audio' | 'text'
@@ -29,12 +31,17 @@ export type VoiceRecord = {
   // Non-destructive trim (null = untrimmed)
   trimStart: number | null
   trimEnd: number | null
+  // Soft delete (Recently Deleted): null/undefined = active, timestamp = in
+  // trash, auto-purged after 30 days
+  deletedAt?: number | null
 }
 
 export type SavedSearch = {
   id: string
   name: string
   query: string
+  /** Search mode the query runs in (native addition — PWA had name only) */
+  mode?: 'name' | 'content'
   folderId?: string | null
   tag?: string | null
   durationFilter?: [number, number] | null

@@ -25,7 +25,8 @@ async function open(): Promise<SQLite.SQLiteDatabase> {
       isDefault INTEGER NOT NULL DEFAULT 0,
       ord INTEGER NOT NULL DEFAULT 0,
       parentId TEXT,
-      color TEXT NOT NULL DEFAULT '#8b5cf6'
+      color TEXT NOT NULL DEFAULT '#8b5cf6',
+      deletedAt INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS records (
@@ -41,7 +42,8 @@ async function open(): Promise<SQLite.SQLiteDatabase> {
       type TEXT NOT NULL DEFAULT 'audio',
       textContent TEXT NOT NULL DEFAULT '',
       trimStart REAL,
-      trimEnd REAL
+      trimEnd REAL,
+      deletedAt INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_records_folderId ON records(folderId);
     CREATE INDEX IF NOT EXISTS idx_records_createdAt ON records(createdAt);
@@ -54,6 +56,7 @@ async function open(): Promise<SQLite.SQLiteDatabase> {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       query TEXT NOT NULL DEFAULT '',
+      mode TEXT NOT NULL DEFAULT 'name',
       folderId TEXT,
       tag TEXT,
       durationMin REAL,
@@ -69,5 +72,14 @@ async function open(): Promise<SQLite.SQLiteDatabase> {
       createdAt INTEGER NOT NULL
     );
   `)
+
+  // Migrations for installs created before these columns existed
+  // (each throws when the column is already there — that's the happy path)
+  await db
+    .execAsync("ALTER TABLE saved_searches ADD COLUMN mode TEXT NOT NULL DEFAULT 'name'")
+    .catch(() => {})
+  await db.execAsync('ALTER TABLE records ADD COLUMN deletedAt INTEGER').catch(() => {})
+  await db.execAsync('ALTER TABLE folders ADD COLUMN deletedAt INTEGER').catch(() => {})
+
   return db
 }

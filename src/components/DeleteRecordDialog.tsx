@@ -5,13 +5,13 @@ import { GlassDialog } from '@/components/GlassDialog'
 import { useToast } from '@/context/ToastContext'
 import { haptic } from '@/lib/haptics'
 import { formatDuration, formatTimestamp, stripStoredTimestampPrefix } from '@/storage/format'
-import { deleteRecord } from '@/storage/records'
+import { softDeleteRecord } from '@/storage/trash'
 import { useTheme } from '@/theme/ThemeContext'
 import { radius, spacing } from '@/theme/tokens'
 import type { VoiceRecord } from '@/types'
 
-// Delete confirmation with record preview (PWA port). Deletes the DB row
-// and the audio file.
+// Delete confirmation with record preview — moves the record to Recently
+// Deleted (30-day soft delete). Permanent deletion happens in the trash view.
 
 type Props = {
   record: VoiceRecord | null
@@ -26,9 +26,9 @@ export function DeleteRecordDialog({ record, onClose, onDeleted }: Props) {
   const handleDelete = async () => {
     if (!record) return
     try {
-      await deleteRecord(record.id)
+      await softDeleteRecord(record.id)
       haptic('warning')
-      showToast('Deleted')
+      showToast('Moved to Recently Deleted')
       onDeleted()
     } catch {
       haptic('error')
@@ -41,7 +41,7 @@ export function DeleteRecordDialog({ record, onClose, onDeleted }: Props) {
     <GlassDialog
       visible={!!record}
       onRequestClose={onClose}
-      title={record?.type === 'text' ? 'Delete this note?' : 'Delete this recording?'}
+      title="Move to Recently Deleted?"
       footer={
         <>
           <Pressable
@@ -55,7 +55,7 @@ export function DeleteRecordDialog({ record, onClose, onDeleted }: Props) {
             style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.85 }]}
           >
             <Trash2 size={15} color="#ffffff" strokeWidth={2} />
-            <Text style={styles.deleteText}>Delete</Text>
+            <Text style={styles.deleteText}>Move to Trash</Text>
           </Pressable>
         </>
       }
@@ -87,9 +87,8 @@ export function DeleteRecordDialog({ record, onClose, onDeleted }: Props) {
             )}
           </View>
           <Text style={[styles.warning, { color: tokens.textMuted }]}>
-            {record.type === 'text'
-              ? 'This will permanently delete the note. This cannot be undone.'
-              : 'This will permanently delete the audio and its metadata. This cannot be undone.'}
+            You can restore it from Settings → Recently Deleted for 30 days. After that it is
+            removed forever.
           </Text>
         </>
       )}

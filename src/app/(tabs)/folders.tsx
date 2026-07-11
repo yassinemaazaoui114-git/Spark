@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router'
 import { ArrowDownUp, Plus } from 'lucide-react-native'
 import { useCallback, useEffect, useState } from 'react'
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 
 import { ButterflyBackground } from '@/components/ButterflyBackground'
@@ -14,6 +14,7 @@ import { GlassCard } from '@/components/GlassCard'
 import { NewFolderDialog } from '@/components/NewFolderDialog'
 import { SearchBar } from '@/components/SearchBar'
 import { SearchResults } from '@/components/SearchResults'
+import { SelectionToolbar } from '@/components/SelectionToolbar'
 import { TAB_BAR_SPACE } from '@/components/TabBar'
 import { folderIcon } from '@/constants/icons'
 import { useToast } from '@/context/ToastContext'
@@ -21,6 +22,7 @@ import { useRecordFilters } from '@/hooks/useRecordFilters'
 import { useSearch } from '@/hooks/useSearch'
 import { setActiveFolderId as syncActiveFolder } from '@/lib/active-folder'
 import { haptic } from '@/lib/haptics'
+import { selection } from '@/lib/selection'
 import { onTabReset } from '@/lib/tab-events'
 import { getFolders, saveFolderOrder } from '@/storage/folders'
 import { getRecords } from '@/storage/records'
@@ -61,6 +63,7 @@ export default function FoldersScreen() {
         setReorderMode(false)
         search.reset()
         filters.reset()
+        selection.exit()
         setResetKey((k) => k + 1)
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -72,6 +75,17 @@ export default function FoldersScreen() {
     setRecords(await getRecords())
     setAllTags(await getAllTags())
   }, [])
+
+  // Pull-to-refresh
+  const [refreshing, setRefreshing] = useState(false)
+  const onPullRefresh = useCallback(async () => {
+    setRefreshing(true)
+    haptic('medium')
+    await refresh()
+    await new Promise((r) => setTimeout(r, 400))
+    setRefreshing(false)
+    haptic('light')
+  }, [refresh])
 
   // Reload whenever the tab gains focus — records/folders may have changed
   useFocusEffect(
@@ -124,8 +138,20 @@ export default function FoldersScreen() {
       <ButterflyBackground />
       <SafeAreaView style={styles.safe} edges={['top']}>
         <FadeView key={resetKey}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            <SearchBar search={search} />
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onPullRefresh}
+                tintColor="#c4b5fd"
+                colors={['#8b5cf6']}
+                progressBackgroundColor="#1a0b2e"
+              />
+            }
+          >
+            <SearchBar search={search} folders={folders} onLoadSavedFolder={openFolder} />
             {/* Inner cross-fade between views (search / filters / folder / list) */}
             <FadeView
               key={
@@ -261,6 +287,8 @@ export default function FoldersScreen() {
           refresh()
         }}
       />
+
+      <SelectionToolbar onChanged={refresh} />
     </View>
   )
 }

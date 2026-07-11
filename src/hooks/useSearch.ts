@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
-import { formatDateKey } from '@/storage/format'
+import { formatDateKey, uid } from '@/storage/format'
 import {
   addRecentSearch,
+  addSavedSearch,
   clearRecentSearches,
+  deleteSavedSearch,
   getRecentSearches,
+  getSavedSearches,
 } from '@/storage/searches'
-import type { VoiceRecord } from '@/types'
+import type { SavedSearch, VoiceRecord } from '@/types'
 
 // Search over records with three modes (PWA had name/date; content mode is
 // Yassine's addition):
@@ -25,9 +28,11 @@ export function useSearch(records: VoiceRecord[], folderId: string | null) {
   const [startDate, setStartDate] = useState<Date | null>(null)
   const [endDate, setEndDate] = useState<Date | null>(null)
   const [recents, setRecents] = useState<string[]>([])
+  const [saved, setSaved] = useState<SavedSearch[]>([])
 
   const loadRecents = useCallback(async () => {
     setRecents(await getRecentSearches())
+    setSaved(await getSavedSearches())
   }, [])
 
   useEffect(() => {
@@ -96,6 +101,43 @@ export function useSearch(records: VoiceRecord[], folderId: string | null) {
     setEndDate(null)
   }, [])
 
+  // ---- Saved searches (Step 24) ----
+
+  // Save the current query + mode + folder scope under a name
+  const saveCurrent = useCallback(
+    async (name: string) => {
+      if (mode === 'date' || !query.trim()) return
+      await addSavedSearch({
+        id: uid(),
+        name: name.trim(),
+        query: query.trim(),
+        mode,
+        folderId,
+        tag: null,
+        durationFilter: null,
+        createdAt: Date.now(),
+      })
+      await loadRecents()
+    },
+    [mode, query, folderId, loadRecents]
+  )
+
+  // Apply a saved search (folder navigation is the screen's job)
+  const loadSaved = useCallback((s: SavedSearch) => {
+    setMode(s.mode === 'content' ? 'content' : 'name')
+    setStartDate(null)
+    setEndDate(null)
+    setQuery(s.query)
+  }, [])
+
+  const deleteSaved = useCallback(
+    async (id: string) => {
+      await deleteSavedSearch(id)
+      await loadRecents()
+    },
+    [loadRecents]
+  )
+
   return {
     mode,
     cycleMode,
@@ -109,8 +151,12 @@ export function useSearch(records: VoiceRecord[], folderId: string | null) {
     active,
     results,
     recents,
+    saved,
     submit,
     clearRecents,
+    saveCurrent,
+    loadSaved,
+    deleteSaved,
     reset,
   }
 }

@@ -28,6 +28,7 @@ type SavedSearchRow = {
   id: string
   name: string
   query: string
+  mode: string
   folderId: string | null
   tag: string | null
   durationMin: number | null
@@ -40,6 +41,7 @@ function rowToSavedSearch(r: SavedSearchRow): SavedSearch {
     id: r.id,
     name: r.name,
     query: r.query,
+    mode: r.mode === 'content' ? 'content' : 'name',
     folderId: r.folderId,
     tag: r.tag,
     durationFilter:
@@ -59,12 +61,13 @@ export async function getSavedSearches(): Promise<SavedSearch[]> {
 export async function addSavedSearch(search: SavedSearch): Promise<void> {
   const db = await getDb()
   await db.runAsync(
-    `INSERT OR REPLACE INTO saved_searches (id, name, query, folderId, tag, durationMin, durationMax, createdAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO saved_searches (id, name, query, mode, folderId, tag, durationMin, durationMax, createdAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       search.id,
       search.name,
       search.query,
+      search.mode ?? 'name',
       search.folderId ?? null,
       search.tag ?? null,
       search.durationFilter?.[0] ?? null,
