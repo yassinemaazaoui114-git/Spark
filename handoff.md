@@ -7,90 +7,86 @@
 
 ## What we did this session
 
-**Steps 27, 28, 29 built + phone-tested. Steps 1–29 all passing.**
+**Step 30 (biometric unlock + lock screen) built + phone-tested, then hardened twice on
+Yassine's security calls. Steps 1–30 all passing.** Model switched from Fable 5 to Opus 4.8
+this session.
 
-- **Step 27 — Light theme** (finished; the bulk was in the working tree from last session):
-  fixed the 3 remaining tsc errors (`theme` not destructured in home/folders/trash), verified
-  the audit — ThemeContext loads `spark:theme` before the first frame (no dark flash),
-  AppearanceSection picker works, only intentional whites remain (toast pill text, red
-  delete-button label).
-- **Bug fix — multi-select Archive↔Restore**: the toolbar decided from a `meta.archived`
-  snapshot taken at selection time, and the Select-all "visible" registry collected mounted
-  RecordCards from BOTH tabs (expo-router keeps background tab screens mounted), so
-  selections could contain stale/non-archived entries → button stuck on "Archive".
-  Rework: `selection.ts` stores plain id Sets (no meta); RecordCards register visible via
-  `useFocusEffect` (focused screen only); `SelectionToolbar` now takes a `records` prop and
-  reads archived state **live**. Trash keeps its own local selection — untouched.
-- **Polish — tab bar ↔ selection toolbar swap animation**: both bars animate
-  (`FadeInUp.duration(250)` in / `FadeOutDown.duration(200)` out, matching the 250ms flip
-  avatars). Side effect Yassine accepted: tab bar does a subtle rise-in at app launch.
-- **Step 28 — Stats page**: `src/components/StatsSheet.tsx` on GlassDialog — 4 gradient
-  hero tiles (recordings / total audio / day streak / this week), secondary rows (avg
-  length, pinned, voice/text, top tag), per-folder bars scaled to the busiest folder,
-  empty state, Close footer. Wired from Settings StatsCard. Archived records still count
-  in stats (only trashed excluded) — deliberate.
-- **Step 29 — Accent variants**: full Tailwind shade ramp per variant
-  (Violet/Ocean/Forest/Rose/Amber) in `tokens.ts`; `getTokens(theme, accent)` (cached)
-  derives all accent tokens + new fill/border tokens (`accentSolid`, `accentTint`,
-  `accentTintStrong`, `accentBorderSoft/Border/BorderStrong`). ThemeContext carries
-  `accent`/`setAccent`, persisted as `spark:icon-variant` (same key as the PWA), loaded
-  with the theme pre-first-frame. Swept all accent surfaces to tokens: active tab pill,
-  tag/filter chips, flip-check circle, selected rows (lists + trash), sort menu, big play
-  button, action-sheet chips, folder icon picker, stats folder bars, refresh spinners,
-  theme-picker highlight. **Kept brand/semantic colors fixed**: butterfly bg, mic gradient,
-  waveform, hero tiles, amber pin / emerald share / red delete / blue text-note, folder
-  colors. 15 icon PNGs copied to `assets/icons/` for the dev build.
+- **Step 30 — Biometric unlock + lock screen**:
+  - `src/lib/biometric.ts` — thin wrapper over **expo-local-authentication** (new package,
+    ~57.0.0, works in Expo Go): `isBiometricAvailable()` (hasHardware + isEnrolled),
+    `isBiometricEnabled()`/`setBiometricEnabled()` (persisted `spark:biometric-enabled`),
+    `authenticate(promptMessage?)` (device-passcode fallback ON so a bad scan never causes
+    a permanent lockout). No credential storage (PWA used WebAuthn; native keystore handles
+    it).
+  - `src/components/LockScreen.tsx` — full-screen overlay (zIndex 9999) on ButterflyBackground:
+    112px frosted fingerprint button, OS sheet auto-pops on mount + on tap, spinner while
+    verifying, "Spark is locked"/"Verifying…" copy, error haptic+toast on fail. Toast renders
+    above it (ToastProvider renders pill after children).
+  - `src/app/_layout.tsx` — `BiometricGate` wraps AppStack (inside Theme+Toast providers):
+    opens locked if enabled, re-locks after **>10s** background (AppState), renders null until
+    the flag resolves (no content flash). Guard: `backgroundedAt` cleared on unlock so the auth
+    sheet's own AppState flip can't loop-relock.
+  - `SecuritySection.tsx` — functional: greys out w/ explanation if no biometric enrolled;
+    Enable runs a **test auth first** (only flips flag on success).
+  - `app.json` — added expo-local-authentication config plugin (faceIDPermission) for the
+    Step 34+ dev build; harmless in Expo Go.
+- **Security fix #1 (Yassine caught it)**: removed the "Disable biometric unlock" link from the
+  LockScreen entirely — it let anyone bypass the lock without authenticating. Disabling now
+  lives only in Settings (reachable after unlock); device-passcode fallback prevents lockout.
+- **Security fix #2 (Yassine's call)**: disabling from Settings now **requires a successful
+  biometric auth** (`authenticate('Confirm to disable biometric unlock')`) before turning the
+  lock off — closes "someone grabs the unlocked phone and quietly disables it". Replaced the
+  old yes/no ConfirmDialog with the OS prompt (it's now both confirmation and gate); shows
+  "Verifying…" spinner; failure keeps it enabled.
 
 ## Decisions made
 
-- Selection: archive-mode is always computed from live records passed by the owning
-  screen — never snapshot record state into module stores.
-- Select-all scope = RecordCards on the *focused* screen (useFocusEffect registration).
-- Accent picker recolors in-app accents only; real launcher icon swap needs the dev build
-  (Step 34+, expo-alternate-app-icons) — the Appearance card says so honestly in the UI.
-- Accent reaches interactive/selected states only, not brand identity. Extending it to the
-  mic button etc. is easy if Yassine asks (all spots are token-driven now).
-- Settings decorative icon chips (StatsCard/Data/Security/PrivacyBanner) stay brand violet.
+- No unauthenticated path to remove the lock — **both** the lock screen and Settings require
+  biometric/passcode to turn it off.
+- Device-passcode fallback (`disableDeviceFallback: false`) is the anti-lockout escape hatch,
+  so the lock screen needs no "disable" button.
+- Re-lock threshold = 10s background (constant `LOCK_AFTER_BACKGROUND_MS` in `_layout.tsx`);
+  brief app switches / the biometric sheet flip don't re-lock.
+- `authenticate()` prompt message is caller-supplied (unlock vs. disable-confirm).
 
 ## Files produced/changed this session
 
-- `src/lib/selection.ts` (rework), `src/components/SelectionToolbar.tsx` (records prop,
-  live lookup, animation), `src/components/TabBar.tsx` (animation), `RecordCard.tsx`
-  (focus-scoped registration + accent tokens)
-- `src/components/StatsSheet.tsx` (new), `src/app/(tabs)/settings.tsx` (wired)
-- `src/theme/tokens.ts` (ramps + getTokens), `src/theme/ThemeContext.tsx` (accent state),
-  `src/components/settings/AppearanceSection.tsx` (picker wired)
-- Accent sweep: FlipAvatar, FilterChips, SortMenu, TagInput, FolderIconPicker,
-  RecordActionSheet, StatsSheet, trash.tsx, index.tsx, folders.tsx
-- `assets/icons/` — 15 PNGs (5 variants × 192/512/maskable-512) from PWA public/
-- No new npm packages.
+- `src/lib/biometric.ts` (new), `src/components/LockScreen.tsx` (new)
+- `src/app/_layout.tsx` (BiometricGate), `src/components/settings/SecuritySection.tsx` (rewrite)
+- `app.json` (plugin), `package.json`/`package-lock.json` (expo-local-authentication)
 
 ## Where we are on the roadmap
 
-**Steps 1–29 complete and phone-tested.** 40 steps total. Remaining Expo Go phase:
-**30 (biometrics), 31 (backup export/import), 32 (onboarding + trim), 33 (reminders)**;
-then dev build 34–37.
+**Steps 1–30 complete and phone-tested.** 40 steps total. Remaining Expo Go phase:
+**31 (backup export/import .zip), 32 (onboarding + trim), 33 (reminders)**; then dev build
+34–37.
 
 ## Single next action
 
-**Step 30 — Biometric unlock + lock screen**: expo-local-authentication
-(`hasHardwareAsync` + `isEnrolledAsync` gate the Security setting; enable runs a test
-`authenticateAsync`; flag in AsyncStorage `spark:biometric-enabled`). Full-screen
-LockScreen (gradient + bokeh, fingerprint button, verifying spinner, "Disable biometric
-unlock" link w/ confirm) gated in the root layout on app open.
-⚠ New package → tell Yassine to restart with `npx expo start -c`.
+**Step 31 — Backup export / import (.zip)**: `src/lib/backup.ts` + wire
+`src/components/settings/DataSection.tsx`.
+- Export: jszip → `manifest.json` (folders + tags + counts) + `metadata/<id>.json` +
+  `audio/<id>.<ext>` (read via FileSystem base64) → write zip to cache → `Sharing.shareAsync`
+  ("spark-backup-YYYY-MM-DD.zip").
+- Import: DocumentPicker (.zip) → parse manifest → merge folders/tags/records **skipping
+  existing IDs** → write audio back to `recordings/` → toast with counts.
+- Keep the zip format **byte-compatible with the PWA backup** so PWA data migrates in.
+- Web APIs replaced: `<a download>` → Sharing; file input → DocumentPicker.
+⚠ New package(s) (jszip, expo-document-picker) → tell Yassine to restart `npx expo start -c`.
 
 ## Open questions
 
-- None blocking. Watch at Step 34: Android background playback >3 min in dev build;
-  lock-screen controls (gated in Expo Go) verified there; real icon swapping via
-  expo-alternate-app-icons using `assets/icons/`.
+- None blocking. Watch at Step 34 (dev build): Android background playback >3 min; lock-screen
+  media controls (gated in Expo Go); real icon swapping via expo-alternate-app-icons using
+  `assets/icons/`. Also verify biometric lock still behaves in a release build.
 
 ## Notes for future Claude
 
-See `AGENTS.md` for working rules + Yassine profile. Short version: one phone-tested step
-at a time, `npx tsc --noEmit`, stop with a numbered test checklist, `expo start -c`
-warning for new packages/dirs, session-end = rewrite this file + commit + push to
-https://github.com/yassinemaazaoui114-git/Spark.git (origin/main). Animation timings are
-Yassine's picks (FadeView 600, long-press 200, flips/bars 250/200) — don't change them
-without asking.
+See `AGENTS.md` for working rules + Yassine profile. Short version: one phone-tested step at a
+time, `npx tsc --noEmit`, stop with a numbered test checklist, `expo start -c` warning for new
+packages/dirs, session-end = rewrite this file + commit + push to
+https://github.com/yassinemaazaoui114-git/Spark.git (origin/main). Yassine has a sharp eye for
+security/UX gaps — he drove both lock hardening fixes this session; surface tradeoffs and let
+him choose. Animation timings are his picks (FadeView 600, long-press 200, flips/bars 250/200)
+— don't change without asking. Model is Opus 4.8 now (was Fable 5); commit trailer adapts to
+whoever is driving.

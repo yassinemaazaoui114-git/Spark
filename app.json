@@ -48,7 +48,13 @@
         }
       ],
       "expo-sharing",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Spark to use Face ID to unlock your notes."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
