@@ -537,6 +537,7 @@ Each step is small and independently testable in **Expo Go** on your phone. **Pr
 **Prereq:** 34 (35–36 recommended first)
 **Files:** `eas.json` (production profile), `app.json`, `assets/` (icon, adaptive icon, splash)
 - Configure app signing (EAS-managed keystore), splash screen assets, and `app.json` metadata: version/versionCode, Android permissions (RECORD_AUDIO, notifications, biometrics), Play-Store-ready icons. Run `eas build --profile production` for the final APK/AAB.
+- ✅ **Shipped 2026-07-12 — Spark v1.0.0.** Production APK installed fresh and fully tested, including in airplane mode (local-first proven; onboarding → backup import → record/trim/reminder/lock-screen/biometric/icon-switch all pass with no dev server). **App-variant split added** (`app.config.js` + `APP_VARIANT=production` in eas.json): production keeps "Spark"/`com.yassinemaazaoui.spark` (it inherited the Step 34 dev build's identity, keystore, and data); development/preview builds are now "Spark (Dev)"/`com.yassinemaazaoui.spark.dev`, so the daily app and the dev client coexist — the setup Step 38's workflow assumes. Production builds APK (sideload); switch to app-bundle only if the Play Store ever happens.
 **Testing:** install the production APK on the phone (fresh install), run through onboarding, record + play + set a reminder — everything works with no dev server running.
 > Step 37 ships the *first* release — **not the last**. Enhancement continues via Step 38 (below).
 

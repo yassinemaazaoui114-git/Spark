@@ -17,7 +17,13 @@
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "APP_VARIANT": "production"
+      },
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
