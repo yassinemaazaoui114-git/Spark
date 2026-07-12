@@ -523,6 +523,7 @@ Each step is small and independently testable in **Expo Go** on your phone. **Pr
 **Files:** `src/hooks/usePlayer.ts` (flip the `LOCK_SCREEN_SUPPORTED` gate), possibly nothing else
 - **Finding from Step 13:** expo-audio's `setActiveForLockScreen(true, metadata)` is already wired into `usePlayer` with the PWA's Media Session metadata (record name / Spark / folder), but it requires the native `AudioControlsService` that only exists in a dev/production build (config plugin `enableBackgroundPlayback: true` is already set in app.json). The call is gated off in Expo Go because it logs a native "service binding failed" error there.
 - In the Step 34 dev build, verify the media notification + lock-screen controls simply work via expo-audio. Only if they prove insufficient (missing seek/±5s buttons, flaky metadata), fall back to swapping the engine for **react-native-track-player** behind the `usePlayer` hook.
+- ✅ **Verified during Step 34 (2026-07-12):** nothing to flip — `LOCK_SCREEN_SUPPORTED` keys off `executionEnvironment`, so it self-enabled in the dev build. Lock-screen/notification controls show the record name + "Spark", pause works, and background playback survives >3 min. expo-audio is sufficient; **no react-native-track-player swap needed**.
 **Testing:** play a record in the dev build, lock the phone → media notification shows the record name + "Spark" + controls; pause from the lock screen works; playback survives >3 min backgrounded on Android.
 
 ### Step 36 — expo-alternate-app-icons (real icon switching)
