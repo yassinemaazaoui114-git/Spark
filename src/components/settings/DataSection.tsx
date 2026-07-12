@@ -1,26 +1,81 @@
+import * as DocumentPicker from 'expo-document-picker'
 import { Download, Upload } from 'lucide-react-native'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useState } from 'react'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { useToast } from '@/context/ToastContext'
+import { exportBackup, importBackup } from '@/lib/backup'
 import { haptic } from '@/lib/haptics'
 import { useTheme } from '@/theme/ThemeContext'
 import { radius, spacing } from '@/theme/tokens'
 
-// Settings → Data & Backup: export/import (functional in Step 31).
+// Settings → Data & Backup: export shares a .zip (PWA-compatible format),
+// import merges one back in. Both live in src/lib/backup.ts.
 
 type Props = {
   recordCount: number
   folderCount: number
   tagCount: number
+  onChanged: () => void
 }
 
-export function DataSection({ recordCount, folderCount, tagCount }: Props) {
+export function DataSection({ recordCount, folderCount, tagCount, onChanged }: Props) {
   const { tokens } = useTheme()
   const { showToast } = useToast()
+  const [busy, setBusy] = useState<'export' | 'import' | null>(null)
 
-  const placeholder = () => {
+  const handleExport = async () => {
+    if (busy) return
     haptic('light')
-    showToast('Backup arrives in Step 31')
+    setBusy('export')
+    try {
+      const count = await exportBackup()
+      if (count === null) {
+        showToast('Sharing is not available on this device')
+      } else {
+        haptic('success')
+        showToast(`Backup ready — ${count} record${count !== 1 ? 's' : ''}`)
+      }
+    } catch (e) {
+      console.error('[backup] export failed:', e)
+      haptic('error')
+      showToast(`Export failed: ${e instanceof Error ? e.message : String(e)}`)
+    }
+    setBusy(null)
+  }
+
+  const handleImport = async () => {
+    if (busy) return
+    haptic('light')
+    setBusy('import')
+    try {
+      const picked = await DocumentPicker.getDocumentAsync({
+        // Android file managers label zips inconsistently — accept the usual suspects
+        type: ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
+        // false → keep the content:// URI (the picker grants read access to it).
+        // Copying to cache lands the file OUTSIDE Expo Go's scoped sandbox, where
+        // neither FileSystem API is allowed to read it. See importBackup().
+        copyToCacheDirectory: false,
+        multiple: false,
+      })
+      if (picked.canceled || !picked.assets?.[0]) {
+        setBusy(null)
+        return
+      }
+      const result = await importBackup(picked.assets[0].uri)
+      haptic('success')
+      showToast(
+        `Imported ${result.recordsImported} record${result.recordsImported !== 1 ? 's' : ''}, ` +
+          `${result.foldersImported} folder${result.foldersImported !== 1 ? 's' : ''}, ` +
+          `${result.tagsImported} tag${result.tagsImported !== 1 ? 's' : ''}`
+      )
+      onChanged()
+    } catch (e) {
+      console.error('[backup] import failed:', e)
+      haptic('error')
+      showToast(`Import failed: ${e instanceof Error ? e.message : String(e)}`)
+    }
+    setBusy(null)
   }
 
   return (
@@ -39,26 +94,45 @@ export function DataSection({ recordCount, folderCount, tagCount }: Props) {
         </Text>
         <View style={styles.buttonRow}>
           <Pressable
-            onPress={placeholder}
-            style={({ pressed }) => [styles.exportBtn, pressed && { opacity: 0.85 }]}
+            onPress={handleExport}
+            disabled={busy !== null}
+            style={({ pressed }) => [
+              styles.exportBtn,
+              pressed && { opacity: 0.85 },
+              busy !== null && { opacity: 0.6 },
+            ]}
             accessibilityRole="button"
             accessibilityLabel="Export backup"
           >
-            <Download size={14} color={tokens.accentIconSoft} strokeWidth={2} />
-            <Text style={[styles.exportText, { color: tokens.accentIconSoft }]}>Export</Text>
+            {busy === 'export' ? (
+              <ActivityIndicator size="small" color={tokens.accentIconSoft} />
+            ) : (
+              <Download size={14} color={tokens.accentIconSoft} strokeWidth={2} />
+            )}
+            <Text style={[styles.exportText, { color: tokens.accentIconSoft }]}>
+              {busy === 'export' ? 'Exporting…' : 'Export'}
+            </Text>
           </Pressable>
           <Pressable
-            onPress={placeholder}
+            onPress={handleImport}
+            disabled={busy !== null}
             style={({ pressed }) => [
               styles.importBtn,
               { borderColor: tokens.borderStrong },
               pressed && { backgroundColor: tokens.surface },
+              busy !== null && { opacity: 0.6 },
             ]}
             accessibilityRole="button"
             accessibilityLabel="Import backup"
           >
-            <Upload size={14} color={tokens.textSecondary} strokeWidth={2} />
-            <Text style={[styles.importText, { color: tokens.textSecondary }]}>Import</Text>
+            {busy === 'import' ? (
+              <ActivityIndicator size="small" color={tokens.textSecondary} />
+            ) : (
+              <Upload size={14} color={tokens.textSecondary} strokeWidth={2} />
+            )}
+            <Text style={[styles.importText, { color: tokens.textSecondary }]}>
+              {busy === 'import' ? 'Importing…' : 'Import'}
+            </Text>
           </Pressable>
         </View>
         <Text style={[styles.counts, { color: tokens.textFaint }]}>

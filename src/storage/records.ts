@@ -55,6 +55,14 @@ export async function getRecords(): Promise<VoiceRecord[]> {
   return rows.map(rowToRecord)
 }
 
+// Every record id, INCLUDING soft-deleted ones — for backup import, where a
+// record sitting in the trash must still block re-import under the same id.
+export async function getAllRecordIds(): Promise<string[]> {
+  const db = await getDb()
+  const rows = await db.getAllAsync<{ id: string }>('SELECT id FROM records')
+  return rows.map((r) => r.id)
+}
+
 export async function getRecord(id: string): Promise<VoiceRecord | null> {
   const db = await getDb()
   const row = await db.getFirstAsync<RecordRow>('SELECT * FROM records WHERE id = ?', [id])

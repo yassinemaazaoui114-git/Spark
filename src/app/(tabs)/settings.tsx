@@ -37,14 +37,16 @@ export default function SettingsScreen() {
   const [resetKey, setResetKey] = useState(0)
   useEffect(() => onTabReset('settings', () => setResetKey((k) => k + 1)), [])
 
+  const refresh = useCallback(async () => {
+    setRecords(await getRecords())
+    setFolders(await getFolders())
+    setTags(await getAllTags())
+  }, [])
+
   useFocusEffect(
     useCallback(() => {
-      ;(async () => {
-        setRecords(await getRecords())
-        setFolders(await getFolders())
-        setTags(await getAllTags())
-      })()
-    }, [])
+      refresh()
+    }, [refresh])
   )
 
   const stats = useMemo(() => computeStats(records, folders), [records, folders])
@@ -89,6 +91,7 @@ export default function SettingsScreen() {
                 recordCount={records.length}
                 folderCount={folders.length}
                 tagCount={tags.length}
+                onChanged={refresh}
               />
             </View>
 
