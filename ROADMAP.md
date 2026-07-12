@@ -530,6 +530,7 @@ Each step is small and independently testable in **Expo Go** on your phone. **Pr
 **Prereq:** 34
 **Files:** `app.json` (config plugin), `assets/icons/` (5 PNG variants from the PWA `public/`), `src/components/settings/IconVariantPicker.tsx`
 - Wire the existing icon-variant picker to **expo-alternate-app-icons** so choosing Violet/Ocean/Forest/Rose/Amber actually changes the home-screen icon (Android activity-alias + iOS alternate icons). Keep the in-app accent recolor behavior too.
+- ✅ **Done 2026-07-12.** `src/lib/app-icon.ts` — violet = default icon (reset), the other 4 are plugin-registered aliases (PascalCase). **Pattern for any future native module:** check `global.expo.modules.<Name>` BEFORE requiring the JS package — Metro reports even *caught* module-eval failures to LogBox in dev, so a try/catch alone still spams the log on binaries that predate the module (expo-notifications and this both hit it). Required a new dev build (first real exercise of the "native change = rebuild" rule).
 **Testing:** pick Ocean in settings → home-screen icon changes to the blue variant (Android may briefly refresh the launcher shortcut — expected); accent colors still follow the variant.
 
 ### Step 37 — Production build

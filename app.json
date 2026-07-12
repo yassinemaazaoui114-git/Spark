@@ -64,7 +64,40 @@
           "faceIDPermission": "Allow Spark to use Face ID to unlock your notes."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-alternate-app-icons",
+        [
+          {
+            "name": "Blue",
+            "android": {
+              "foregroundImage": "./assets/icons/icon-spark-blue-maskable-512.png",
+              "backgroundColor": "#1a0b2e"
+            }
+          },
+          {
+            "name": "Emerald",
+            "android": {
+              "foregroundImage": "./assets/icons/icon-spark-emerald-maskable-512.png",
+              "backgroundColor": "#1a0b2e"
+            }
+          },
+          {
+            "name": "Rose",
+            "android": {
+              "foregroundImage": "./assets/icons/icon-spark-rose-maskable-512.png",
+              "backgroundColor": "#1a0b2e"
+            }
+          },
+          {
+            "name": "Amber",
+            "android": {
+              "foregroundImage": "./assets/icons/icon-spark-amber-maskable-512.png",
+              "backgroundColor": "#1a0b2e"
+            }
+          }
+        ]
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

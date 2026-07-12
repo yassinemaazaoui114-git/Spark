@@ -3,16 +3,27 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { LinearGradient } from 'expo-linear-gradient'
 
+import { useToast } from '@/context/ToastContext'
+import { applyLauncherIcon } from '@/lib/app-icon'
 import { haptic } from '@/lib/haptics'
 import { useTheme } from '@/theme/ThemeContext'
 import { ICON_VARIANTS, radius, spacing } from '@/theme/tokens'
 
 // Settings → Appearance: theme picker and accent variants. The accent pick
-// recolors the whole app; the real launcher icon can only change in a dev
-// build (Step 34+, expo-alternate-app-icons) — assets wait in assets/icons/.
+// recolors the whole app everywhere; in dev/production builds it ALSO swaps
+// the real home-screen icon (Step 36, expo-alternate-app-icons — a no-op in
+// Expo Go, where the native module doesn't exist).
 
 export function AppearanceSection() {
   const { theme, tokens, accent, setTheme, setAccent } = useTheme()
+  const { showToast } = useToast()
+
+  const pickVariant = async (id: (typeof ICON_VARIANTS)[number]['id'], name: string) => {
+    haptic('light')
+    setAccent(id)
+    const iconChanged = await applyLauncherIcon(id)
+    if (iconChanged) showToast(`App icon switched to ${name}`)
+  }
 
   return (
     <View>
@@ -60,8 +71,8 @@ export function AppearanceSection() {
       >
         <Text style={[styles.cardTitle, { color: tokens.textPrimary }]}>App icon</Text>
         <Text style={[styles.cardHint, { color: tokens.textMuted }]}>
-          Pick an accent color for Spark. The home-screen icon itself updates in the full
-          Android build.
+          Pick an accent color for Spark — the app recolors and the home-screen icon
+          follows. (Icon switching needs the installed build, not Expo Go.)
         </Text>
         <View style={styles.swatchRow}>
           {ICON_VARIANTS.map((v) => {
@@ -69,10 +80,7 @@ export function AppearanceSection() {
             return (
               <Pressable
                 key={v.id}
-                onPress={() => {
-                  haptic('light')
-                  setAccent(v.id)
-                }}
+                onPress={() => pickVariant(v.id, v.name)}
                 style={[
                   styles.swatchWrap,
                   selected && {
