@@ -3,6 +3,13 @@ import { createAudioPlayer, type AudioPlayer, type AudioStatus } from 'expo-audi
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { clearActive, registerActive } from '@/lib/playback-manager'
+import {
+  buildSegments,
+  segmentsLength,
+  toNative,
+  toPresented,
+  type TrimFields,
+} from '@/lib/trim'
 
 // Per-card playback. Performance-critical detail (Step 26.5): the native
 // player is created lazily on FIRST interaction — mounting a list of 100
@@ -20,6 +27,11 @@ export type PlayerMeta = {
   title: string
   folderName?: string
 }
+
+// Non-destructive trim (Steps 32 + 32.5): playback runs over the record's
+// playable segments — the trim window minus the removed middle (src/lib/trim).
+// Every time the hook exposes is "presented" (segments laid end-to-end from
+// 0), so the card's scrubber/labels show the edited audio as the whole track.
 
 export type Player = {
   playing: boolean
@@ -46,19 +58,34 @@ function applySpeed(player: AudioPlayer, rate: number) {
   }
 }
 
+const UNTRIMMED: TrimFields = { trimStart: null, trimEnd: null, cutStart: null, cutEnd: null }
+
 export function usePlayer(
   recordId: string,
   uri: string,
   storedDurationSec: number,
-  meta?: PlayerMeta
+  meta?: PlayerMeta,
+  trim?: TrimFields
 ): Player {
   const playerRef = useRef<AudioPlayer | null>(null)
   const statusSubRef = useRef<{ remove: () => void } | null>(null)
 
   const [playing, setPlaying] = useState(false)
-  const [currentTime, setCurrentTime] = useState(0)
+  const [currentTime, setCurrentTime] = useState(0) // presented (segment-relative)
   const [nativeDuration, setNativeDuration] = useState(0)
   const [speedIdx, setSpeedIdx] = useState(1) // default 1×
+
+  const fields = trim ?? UNTRIMMED
+
+  // The status listener lives as long as the player — read trim via a ref so
+  // a re-trim (or restore) applies without recreating the native player.
+  const trimRef = useRef(fields)
+  trimRef.current = fields
+
+  // Segments over Infinity stay correct while the native duration is unknown
+  // (the last segment just has no known end yet).
+  const segmentsFor = (full: number) =>
+    buildSegments(full > 0 ? full : Infinity, trimRef.current)
 
   // Create the native player on first use and subscribe to its status.
   const ensurePlayer = useCallback((): AudioPlayer => {
@@ -67,9 +94,38 @@ export function usePlayer(
       statusSubRef.current = player.addListener(
         'playbackStatusUpdate',
         (status: AudioStatus) => {
-          setPlaying(status.playing)
-          setCurrentTime(status.currentTime)
           if (status.duration > 0) setNativeDuration(status.duration)
+          const segs = buildSegments(
+            status.duration > 0 ? status.duration : Infinity,
+            trimRef.current
+          )
+          const last = segs[segs.length - 1]
+          // Auto-stop at the trim end and rewind to the start of the audio
+          // (a natural end-of-file stop is the player's own business)
+          if (
+            trimRef.current.trimEnd != null &&
+            status.playing &&
+            status.currentTime >= last.to - 0.05
+          ) {
+            player.pause()
+            player.seekTo(segs[0].from)
+            setPlaying(false)
+            setCurrentTime(0)
+            return
+          }
+          // Jump over the removed middle
+          for (let i = 0; i < segs.length - 1; i++) {
+            if (
+              status.playing &&
+              status.currentTime >= segs[i].to - 0.05 &&
+              status.currentTime < segs[i + 1].from
+            ) {
+              player.seekTo(segs[i + 1].from)
+              return
+            }
+          }
+          setPlaying(status.playing)
+          setCurrentTime(toPresented(status.currentTime, segs))
         }
       )
       playerRef.current = player
@@ -92,7 +148,11 @@ export function usePlayer(
     }
   }, [recordId])
 
-  const duration = nativeDuration > 0 ? nativeDuration : storedDurationSec
+  // Presented duration = total playable length. Finite even before the native
+  // duration loads whenever trimEnd is set; otherwise storedDurationSec
+  // already holds the edited length (set on save).
+  const segmentTotal = segmentsLength(segmentsFor(nativeDuration))
+  const duration = Number.isFinite(segmentTotal) ? segmentTotal : storedDurationSec
 
   const toggle = useCallback(async () => {
     const player = ensurePlayer()
@@ -120,20 +180,28 @@ export function usePlayer(
         // Lock-screen controls are best-effort — playback works regardless
       }
     }
-    // Restart from the top when the last run finished
-    if (nativeDuration > 0 && currentTime >= nativeDuration - 0.1) {
-      await player.seekTo(0)
+    // Start from the first playable segment on first play or after a finish
+    if (currentTime <= 0.01 || (duration > 0 && currentTime >= duration - 0.1)) {
+      await player.seekTo(segmentsFor(player.duration)[0].from)
+      setCurrentTime(0)
     }
     applySpeed(player, PLAYBACK_SPEEDS[speedIdx])
     player.play()
-  }, [currentTime, ensurePlayer, meta?.folderName, meta?.title, nativeDuration, playing, recordId, speedIdx])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTime, duration, ensurePlayer, meta?.folderName, meta?.title, playing, recordId, speedIdx])
 
   const seekTo = useCallback(
     (sec: number) => {
       const player = ensurePlayer()
-      player.seekTo(Math.max(0, sec))
-      setCurrentTime(Math.max(0, sec))
+      const segs = segmentsFor(playerRef.current?.duration ?? 0)
+      // Map the presented position onto the real timeline (never in a gap)
+      const total = segmentsLength(segs)
+      let presented = Math.max(0, sec)
+      if (Number.isFinite(total)) presented = Math.min(presented, Math.max(0, total - 0.05))
+      player.seekTo(toNative(presented, segs))
+      setCurrentTime(presented)
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [ensurePlayer]
   )
 

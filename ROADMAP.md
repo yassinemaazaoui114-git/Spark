@@ -489,13 +489,24 @@ Each step is small and independently testable in **Expo Go** on your phone. **Pr
 - Final polish pass: verify cross-fades everywhere, active-tab reset behaviors, haptics coverage.
 **Testing:** fresh install shows onboarding once; trim a recording to its middle 5s → playback starts/stops at the handles, duration label updates; "save as copy" keeps original intact.
 
+### Step 32.5 — Remove-middle trim mode ✂️ *(added 2026-07-12 by Yassine's request — right after testing Step 32's keep-selection trim)*
+**Prereq:** 32 (built on the TrimSheet/WaveformTrimmer and the non-destructive trim engine)
+**Files:** `src/lib/trim.ts` (new — shared segment math), `src/types.ts`, `src/storage/db.ts` (migration), `src/storage/records.ts`, `src/lib/backup.ts`, `src/hooks/usePlayer.ts`, `src/components/TrimSheet.tsx`, `src/components/WaveformTrimmer.tsx`, `src/components/RecordCard.tsx`
+- **Second trim style:** cut a range out of the *middle* of a recording, keeping both sides. New nullable `cutStart`/`cutEnd` columns on records (ALTER TABLE migration); a record's playable audio = trim window minus the cut — up to two segments, computed by `src/lib/trim.ts` and shared by playback and preview.
+- **TrimSheet mode toggle:** "Keep selection" (Step 32 behavior) / "Remove middle" (handles select the part to delete; the middle dims with a red border, kept sides stay violet→fuchsia). Preview plays the exact result, skipping the hole.
+- **Normalization:** a removal that touches the window's start/end is saved as a plain trim (no cut fields), so data stays canonical; removing everything is blocked. Keep-mode reshapes preserve an existing cut (clamped into the new window).
+- **Playback:** `usePlayer` seeks over the gap mid-play; scrubber/±5s/labels present the stitched segments as one continuous track. Backup zips carry `cutStart`/`cutEnd` as extra JSON keys (PWA importer ignores them).
+**Testing:** remove the middle of a recording → playback audibly skips it and the duration shrinks; scrub across the seam; preview matches the saved result; a removal dragged to touch an edge becomes a plain trim; restore by re-trimming to full width.
+
 ### Step 33 — NEW: Scheduled reminders 🔔
 **Prereq:** 12, 18
 **Files:** `src/lib/reminders.ts`, `src/components/ReminderDialog.tsx`, action-sheet entry, `src/components/settings/RemindersSection.tsx`, notification handler in root layout
 - Add "Remind me" (8th action) to the record action sheet → date+time picker dialog → `Notifications.scheduleNotificationAsync` (title = record name, body "Tap to listen", data `{ recordId }`); store Reminder row; request notification permission on first use (Android: create a notification channel).
 - Notification response listener in root layout: navigate to the record and **auto-play it** (text notes: open expanded).
 - Pending reminders list (per record indicator + settings section) with cancel (cancels scheduled notification + deletes row); fired reminders cleaned up.
-**Testing:** set a reminder 2 minutes out, close the app → notification fires on time → tapping it opens Spark and the recording plays automatically; cancelling a reminder prevents it from firing.
+- **Finding from Step 33:** expo-notifications cannot even be *imported* in Expo Go on Android — SDK 53+ removed its push native module from the Go client, and the package touches it during module evaluation and throws (a static import crashed every route). It is now lazy-required behind `getNotifications()` in `src/lib/reminders.ts` (returns null in Expo Go). Everything ships now — dialog, storage, settings list, tap-through auto-play — but scheduling is disabled in Expo Go with an explanatory note in the dialog; the real fire→tap→auto-play test happens in the **Step 34 dev build**.
+**Testing (Expo Go):** app boots cleanly; "Remind me" opens the dialog with presets + pickers; the dialog shows the dev-build notice and Save is disabled.
+**Testing (moved to Step 34):** set a reminder 2 minutes out, close the app → notification fires on time → tapping it opens Spark and the recording plays automatically; cancelling a reminder prevents it from firing.
 
 ---
 
@@ -592,4 +603,4 @@ Butterfly + crystal SVG paths (copied verbatim from PWA into react-native-svg): 
 
 ---
 
-*Roadmap — a **living plan**, not a fixed-length list. Steps 1–33 (incl. 25.5, 26.5, 26.7) run in Expo Go; 34–37 are the dev build & first release; **Step 37 is a checkpoint, not the finish line** — Step 38 (EAS Update) and any future steps keep the installed app evolving over-the-air. Built one step at a time; each step is tested on-phone before the next begins.*
+*Roadmap — a **living plan**, not a fixed-length list. Steps 1–33 (incl. 25.5, 26.5, 26.7, 32.5) run in Expo Go; 34–37 are the dev build & first release; **Step 37 is a checkpoint, not the finish line** — Step 38 (EAS Update) and any future steps keep the installed app evolving over-the-air. Built one step at a time; each step is tested on-phone before the next begins.*

@@ -32,6 +32,8 @@ type RecordMeta = {
   archived?: boolean
   trimStart?: number | null
   trimEnd?: number | null
+  cutStart?: number | null
+  cutEnd?: number | null
 }
 
 type ManifestFolder = {
@@ -110,6 +112,8 @@ export async function exportBackup(): Promise<number | null> {
           archived: r.archived,
           trimStart: r.trimStart,
           trimEnd: r.trimEnd,
+          cutStart: r.cutStart,
+          cutEnd: r.cutEnd,
         },
         null,
         2
@@ -214,6 +218,8 @@ export async function importBackup(zipUri: string): Promise<ImportResult> {
       textContent: meta.textContent ?? '',
       trimStart: meta.trimStart ?? null,
       trimEnd: meta.trimEnd ?? null,
+      cutStart: meta.cutStart ?? null,
+      cutEnd: meta.cutEnd ?? null,
       deletedAt: null,
     }
     await saveRecord(record)

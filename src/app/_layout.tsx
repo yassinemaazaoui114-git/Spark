@@ -1,4 +1,5 @@
-import { Stack } from 'expo-router'
+import type { NotificationResponse } from 'expo-notifications'
+import { Stack, router } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { useEffect, useRef, useState } from 'react'
 import { AppState, LogBox } from 'react-native'
@@ -16,9 +17,17 @@ LogBox.ignoreLogs([
 ])
 
 import { LockScreen } from '@/components/LockScreen'
+import { Onboarding } from '@/components/Onboarding'
 import { ToastProvider } from '@/context/ToastContext'
 import { setPlaybackAudioMode } from '@/lib/audio-mode'
 import { isBiometricEnabled } from '@/lib/biometric'
+import {
+  cleanupExpiredReminders,
+  getNotifications,
+  refreshReminderIds,
+  setPendingOpenRecord,
+} from '@/lib/reminders'
+import { PREF_KEYS, getPref, setPref } from '@/storage/prefs'
 import { TRASH_RETENTION_MS, purgeOldDeleted } from '@/storage/trash'
 import { ThemeProvider, useTheme } from '@/theme/ThemeContext'
 
@@ -77,6 +86,32 @@ function BiometricGate({ children }: { children: React.ReactNode }) {
   )
 }
 
+// First-open tutorial (Step 32). Shown once, over the app; the biometric lock
+// (zIndex above it) still covers everything if both are active.
+function OnboardingGate({ children }: { children: React.ReactNode }) {
+  const [show, setShow] = useState(false)
+
+  useEffect(() => {
+    getPref(PREF_KEYS.onboarded).then((v) => {
+      if (v !== '1') setShow(true)
+    })
+  }, [])
+
+  return (
+    <>
+      {children}
+      {show && (
+        <Onboarding
+          onDone={() => {
+            setShow(false)
+            setPref(PREF_KEYS.onboarded, '1')
+          }}
+        />
+      )}
+    </>
+  )
+}
+
 function AppStack() {
   const { tokens } = useTheme()
   return (
@@ -93,10 +128,41 @@ function AppStack() {
 }
 
 export default function RootLayout() {
-  // App-wide audio session + trash auto-purge (items older than 30 days)
+  // App-wide audio session, trash auto-purge (30 days), fired-reminder sweep
   useEffect(() => {
     setPlaybackAudioMode()
     purgeOldDeleted(Date.now() - TRASH_RETENTION_MS).catch(() => {})
+    cleanupExpiredReminders().catch(() => refreshReminderIds().catch(() => {}))
+  }, [])
+
+  // Reminder taps → home tab + hand the recordId to the home screen.
+  // getLast... covers cold start (the tap launched the app); the listener
+  // covers taps while running. getNotifications() is null in Expo Go
+  // (expo-notifications can't even load there) — reminders are dev-build only.
+  useEffect(() => {
+    const Notifications = getNotifications()
+    if (!Notifications) return
+    // Reminder notifications must show even while Spark is foregrounded
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    })
+    const openFromResponse = (response: NotificationResponse | null) => {
+      const recordId = response?.notification.request.content.data?.recordId
+      if (typeof recordId === 'string') {
+        setPendingOpenRecord(recordId)
+        router.navigate('/')
+      }
+    }
+    Notifications.getLastNotificationResponseAsync()
+      .then(openFromResponse)
+      .catch(() => {})
+    const sub = Notifications.addNotificationResponseReceivedListener(openFromResponse)
+    return () => sub.remove()
   }, [])
 
   return (
@@ -104,7 +170,9 @@ export default function RootLayout() {
       <ThemeProvider>
         <ToastProvider>
           <BiometricGate>
-            <AppStack />
+            <OnboardingGate>
+              <AppStack />
+            </OnboardingGate>
           </BiometricGate>
         </ToastProvider>
       </ThemeProvider>

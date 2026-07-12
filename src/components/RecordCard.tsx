@@ -1,5 +1,6 @@
 import Slider from '@react-native-community/slider'
 import {
+  Bell,
   FastForward,
   Gauge,
   Hash,
@@ -13,17 +14,20 @@ import {
   Share2,
 } from 'lucide-react-native'
 import { useFocusEffect } from 'expo-router'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 
 import { DeleteRecordDialog } from '@/components/DeleteRecordDialog'
 import { FlipAvatar } from '@/components/FlipAvatar'
 import { MoveRecordDialog } from '@/components/MoveRecordDialog'
 import { RecordActionSheet } from '@/components/RecordActionSheet'
+import { ReminderDialog } from '@/components/ReminderDialog'
 import { RenameRecordDialog } from '@/components/RenameRecordDialog'
+import { TrimSheet } from '@/components/TrimSheet'
 import { useToast } from '@/context/ToastContext'
 import { usePlayer } from '@/hooks/usePlayer'
 import { haptic } from '@/lib/haptics'
+import { useReminderIds } from '@/lib/reminders'
 import { useSelection } from '@/lib/selection'
 import { shareRecord } from '@/lib/share-record'
 import {
@@ -45,9 +49,11 @@ type Props = {
   record: VoiceRecord
   folderName?: string
   onChanged?: () => void
+  /** Reminder tap-through: expand on mount and start playback (audio). */
+  autoPlay?: boolean
 }
 
-export function RecordCard({ record, folderName, onChanged }: Props) {
+export function RecordCard({ record, folderName, onChanged, autoPlay }: Props) {
   const { tokens } = useTheme()
   const { showToast } = useToast()
   const [expanded, setExpanded] = useState(false)
@@ -57,6 +63,11 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
   const [showMove, setShowMove] = useState(false)
   const [showRename, setShowRename] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
+  const [showTrim, setShowTrim] = useState(false)
+  const [showRemind, setShowRemind] = useState(false)
+
+  // Bell indicator — shared store, refreshed whenever reminders change
+  const hasReminder = useReminderIds().has(record.id)
 
   // Multi-select
   const sel = useSelection()
@@ -109,10 +120,26 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
 
   const isTextNote = record.type === 'text'
   const name = stripStoredTimestampPrefix(record.name)
-  const player = usePlayer(record.id, record.audioUri, record.durationSec, {
-    title: name,
-    folderName,
-  })
+  const player = usePlayer(
+    record.id,
+    record.audioUri,
+    record.durationSec,
+    { title: name, folderName },
+    {
+      trimStart: record.trimStart,
+      trimEnd: record.trimEnd,
+      cutStart: record.cutStart,
+      cutEnd: record.cutEnd,
+    }
+  )
+
+  // Reminder tap-through: open expanded and play (text notes just expand)
+  useEffect(() => {
+    if (!autoPlay) return
+    setExpanded(true)
+    if (!isTextNote) player.toggle()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const metaParts = [
     isTextNote
@@ -204,9 +231,12 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
               {name}
             </Text>
           </View>
-          <Text style={[styles.timestamp, { color: tokens.textFaint }]}>
-            {formatTimestamp(record.createdAt)}
-          </Text>
+          <View style={styles.timestampRow}>
+            {hasReminder && <Bell size={10} color={accent.amber} strokeWidth={2} />}
+            <Text style={[styles.timestamp, { color: tokens.textFaint }]}>
+              {formatTimestamp(record.createdAt)}
+            </Text>
+          </View>
           <Text style={[styles.meta, { color: tokens.textMuted }]} numberOfLines={2}>
             {metaParts.join(' · ')}
           </Text>
@@ -348,7 +378,10 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
                 </Pressable>
 
                 <Pressable
-                  onPress={() => showToast('Trim arrives in Step 32')}
+                  onPress={() => {
+                    haptic('light')
+                    setShowTrim(true)
+                  }}
                   style={({ pressed }) => [
                     styles.pillBtn,
                     { backgroundColor: pressed ? tokens.surfaceStrong : tokens.surface },
@@ -387,7 +420,8 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
         onRename={() => setShowRename(true)}
         onMove={() => setShowMove(true)}
         onShare={handleShare}
-        onTrim={() => showToast('Trim arrives in Step 32')}
+        onRemind={() => setShowRemind(true)}
+        onTrim={() => setShowTrim(true)}
         onArchive={handleToggleArchive}
         onDelete={() => setShowDelete(true)}
         onSelect={() => sel.start(record.id)}
@@ -418,6 +452,20 @@ export function RecordCard({ record, folderName, onChanged }: Props) {
           setShowDelete(false)
           changed()
         }}
+      />
+
+      <TrimSheet
+        record={showTrim ? record : null}
+        onClose={() => setShowTrim(false)}
+        onSaved={() => {
+          setShowTrim(false)
+          changed()
+        }}
+      />
+
+      <ReminderDialog
+        record={showRemind ? record : null}
+        onClose={() => setShowRemind(false)}
       />
     </View>
   )
@@ -475,9 +523,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
   },
+  timestampRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
   timestamp: {
     fontSize: 11,
-    marginTop: 2,
   },
   meta: {
     fontSize: 12,

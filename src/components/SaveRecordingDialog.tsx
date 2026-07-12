@@ -95,6 +95,8 @@ export function SaveRecordingDialog({ pending, onSaved, onDiscarded, onReRecord 
         textContent: '',
         trimStart: null,
         trimEnd: null,
+        cutStart: null,
+        cutEnd: null,
       })
       haptic('success')
       showToast('Saved')

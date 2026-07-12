@@ -17,6 +17,8 @@ export type RecordRow = {
   textContent: string
   trimStart: number | null
   trimEnd: number | null
+  cutStart: number | null
+  cutEnd: number | null
   deletedAt: number | null
 }
 
@@ -42,6 +44,8 @@ export function rowToRecord(r: RecordRow): VoiceRecord {
     textContent: r.textContent,
     trimStart: r.trimStart,
     trimEnd: r.trimEnd,
+    cutStart: r.cutStart,
+    cutEnd: r.cutEnd,
     deletedAt: r.deletedAt ?? null,
   }
 }
@@ -83,13 +87,14 @@ export async function getRecordsByTag(tag: string): Promise<VoiceRecord[]> {
 export async function saveRecord(record: VoiceRecord): Promise<void> {
   const db = await getDb()
   await db.runAsync(
-    `INSERT INTO records (id, name, folderId, audioUri, durationSec, createdAt, pinned, tags, archived, type, textContent, trimStart, trimEnd, deletedAt)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO records (id, name, folderId, audioUri, durationSec, createdAt, pinned, tags, archived, type, textContent, trimStart, trimEnd, cutStart, cutEnd, deletedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        name = excluded.name, folderId = excluded.folderId, audioUri = excluded.audioUri,
        durationSec = excluded.durationSec, pinned = excluded.pinned, tags = excluded.tags,
        archived = excluded.archived, type = excluded.type, textContent = excluded.textContent,
-       trimStart = excluded.trimStart, trimEnd = excluded.trimEnd, deletedAt = excluded.deletedAt`,
+       trimStart = excluded.trimStart, trimEnd = excluded.trimEnd,
+       cutStart = excluded.cutStart, cutEnd = excluded.cutEnd, deletedAt = excluded.deletedAt`,
     [
       record.id,
       record.name,
@@ -104,6 +109,8 @@ export async function saveRecord(record: VoiceRecord): Promise<void> {
       record.textContent,
       record.trimStart,
       record.trimEnd,
+      record.cutStart,
+      record.cutEnd,
       record.deletedAt ?? null,
     ]
   )

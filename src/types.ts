@@ -31,6 +31,10 @@ export type VoiceRecord = {
   // Non-destructive trim (null = untrimmed)
   trimStart: number | null
   trimEnd: number | null
+  // Non-destructive middle removal (Step 32.5): playback skips
+  // [cutStart, cutEnd] inside the trim window. null = nothing removed.
+  cutStart: number | null
+  cutEnd: number | null
   // Soft delete (Recently Deleted): null/undefined = active, timestamp = in
   // trash, auto-purged after 30 days
   deletedAt?: number | null

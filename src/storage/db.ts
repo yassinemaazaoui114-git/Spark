@@ -43,6 +43,8 @@ async function open(): Promise<SQLite.SQLiteDatabase> {
       textContent TEXT NOT NULL DEFAULT '',
       trimStart REAL,
       trimEnd REAL,
+      cutStart REAL,
+      cutEnd REAL,
       deletedAt INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_records_folderId ON records(folderId);
@@ -80,6 +82,8 @@ async function open(): Promise<SQLite.SQLiteDatabase> {
     .catch(() => {})
   await db.execAsync('ALTER TABLE records ADD COLUMN deletedAt INTEGER').catch(() => {})
   await db.execAsync('ALTER TABLE folders ADD COLUMN deletedAt INTEGER').catch(() => {})
+  await db.execAsync('ALTER TABLE records ADD COLUMN cutStart REAL').catch(() => {})
+  await db.execAsync('ALTER TABLE records ADD COLUMN cutEnd REAL').catch(() => {})
 
   return db
 }

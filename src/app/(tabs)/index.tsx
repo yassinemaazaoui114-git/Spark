@@ -1,5 +1,5 @@
 import { useFocusEffect } from 'expo-router'
-import { Clock, FolderPlus } from 'lucide-react-native'
+import { Bell, Clock, FolderPlus, X } from 'lucide-react-native'
 import { useCallback, useEffect, useState } from 'react'
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -26,6 +26,7 @@ import { useRecordFilters } from '@/hooks/useRecordFilters'
 import { useRecorder, type FinishedRecording } from '@/hooks/useRecorder'
 import { useSearch } from '@/hooks/useSearch'
 import { haptic } from '@/lib/haptics'
+import { consumePendingOpenRecord, onPendingOpenRecord } from '@/lib/reminders'
 import { selection } from '@/lib/selection'
 import {
   getSmartFolder,
@@ -35,10 +36,10 @@ import {
 } from '@/lib/smart-folder'
 import { onTabReset } from '@/lib/tab-events'
 import { ensureSeedFolders, getFolders } from '@/storage/folders'
-import { getRecords } from '@/storage/records'
+import { getRecord, getRecords } from '@/storage/records'
 import { getAllTags } from '@/storage/tags'
 import { useTheme } from '@/theme/ThemeContext'
-import { spacing } from '@/theme/tokens'
+import { accent, spacing } from '@/theme/tokens'
 import type { Folder, VoiceRecord } from '@/types'
 
 export default function RecordScreen() {
@@ -84,6 +85,35 @@ export default function RecordScreen() {
   const [smart, setSmart] = useState<SmartFolder | null>(getSmartFolder())
   useEffect(() => onSmartFolderChange(setSmart), [])
   const clearSmart = () => setSmartFolder(null)
+
+  // Reminder tap-through (Step 33): the root layout stores the recordId, we
+  // surface the record in a highlighted section that auto-plays it.
+  const [reminderRecord, setReminderRecord] = useState<VoiceRecord | null>(null)
+  const openReminderRecord = useCallback(
+    async (id: string) => {
+      const rec = await getRecord(id)
+      if (!rec || rec.deletedAt != null) {
+        showToast('That recording is no longer available')
+        return
+      }
+      // Clear any active view so the section is actually visible
+      search.reset()
+      filters.reset()
+      setSmartFolder(null)
+      setReminderRecord(rec)
+    },
+    // search/filters are stable enough per focus; re-creating is harmless
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [showToast]
+  )
+  useEffect(() => {
+    const pending = consumePendingOpenRecord()
+    if (pending) openReminderRecord(pending)
+    return onPendingOpenRecord((id) => {
+      consumePendingOpenRecord()
+      openReminderRecord(id)
+    })
+  }, [openReminderRecord])
 
   // Re-tapping the active Record tab resets to default state
   const [resetKey, setResetKey] = useState(0)
@@ -212,6 +242,44 @@ export default function RecordScreen() {
                   />
                 ) : (
                   <>
+                {/* Reminder tap-through — highlighted card, auto-plays */}
+                {reminderRecord && (
+                  <GlassCard style={{ marginBottom: spacing.lg }}>
+                    <View style={styles.recentHeader}>
+                      <View style={styles.reminderTitleRow}>
+                        <Bell size={15} color={accent.amber} strokeWidth={2} />
+                        <Text style={[styles.recentTitle, { color: tokens.textPrimary }]}>
+                          Reminder
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          haptic('light')
+                          setReminderRecord(null)
+                        }}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel="Dismiss reminder"
+                      >
+                        <X size={16} color={tokens.textFaint} strokeWidth={2} />
+                      </Pressable>
+                    </View>
+                    <RecordCard
+                      key={reminderRecord.id}
+                      record={reminderRecord}
+                      folderName={
+                        folders.find((f) => f.id === reminderRecord.folderId)?.name || 'Unknown'
+                      }
+                      autoPlay
+                      onChanged={async () => {
+                        refreshRecords()
+                        const rec = await getRecord(reminderRecord.id)
+                        setReminderRecord(rec && rec.deletedAt == null ? rec : null)
+                      }}
+                    />
+                  </GlassCard>
+                )}
+
                 <RecordPanel
                   recorder={recorder}
                   onFinished={setPending}
@@ -333,5 +401,10 @@ const styles = StyleSheet.create({
   },
   recentList: {
     gap: spacing.sm,
+  },
+  reminderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 })

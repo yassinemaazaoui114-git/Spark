@@ -12,6 +12,7 @@ import { AppearanceSection } from '@/components/settings/AppearanceSection'
 import { DataSection } from '@/components/settings/DataSection'
 import { PrivacyBanner } from '@/components/settings/PrivacyBanner'
 import { RecentlyDeletedCard } from '@/components/settings/RecentlyDeletedCard'
+import { RemindersSection } from '@/components/settings/RemindersSection'
 import { SecuritySection } from '@/components/settings/SecuritySection'
 import { SmartViewsSection } from '@/components/settings/SmartViewsSection'
 import { StatsCard } from '@/components/settings/StatsCard'
@@ -72,6 +73,10 @@ export default function SettingsScreen() {
 
             <View style={styles.section}>
               <RecentlyDeletedCard />
+            </View>
+
+            <View style={styles.section}>
+              <RemindersSection />
             </View>
 
             <View style={styles.section}>

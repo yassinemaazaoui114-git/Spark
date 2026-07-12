@@ -75,6 +75,8 @@ export function TextNoteDialog({ visible, onClose, onSaved }: Props) {
         textContent: trimmed,
         trimStart: null,
         trimEnd: null,
+        cutStart: null,
+        cutEnd: null,
       })
       haptic('success')
       showToast('Note saved')

@@ -37,9 +37,10 @@ export function DataSection({ recordCount, folderCount, tagCount, onChanged }: P
         showToast(`Backup ready — ${count} record${count !== 1 ? 's' : ''}`)
       }
     } catch (e) {
+      // Full error stays in the log for debugging; the toast stays friendly
       console.error('[backup] export failed:', e)
       haptic('error')
-      showToast(`Export failed: ${e instanceof Error ? e.message : String(e)}`)
+      showToast('Export failed — could not build the backup')
     }
     setBusy(null)
   }
@@ -71,9 +72,10 @@ export function DataSection({ recordCount, folderCount, tagCount, onChanged }: P
       )
       onChanged()
     } catch (e) {
+      // Full error stays in the log for debugging; the toast stays friendly
       console.error('[backup] import failed:', e)
       haptic('error')
-      showToast(`Import failed: ${e instanceof Error ? e.message : String(e)}`)
+      showToast('Import failed — is that file a Spark backup .zip?')
     }
     setBusy(null)
   }

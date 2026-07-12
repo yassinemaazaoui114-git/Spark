@@ -16,7 +16,7 @@ for logic and design, but **never copy-paste web code**; write clean native code
 ## The three documents
 
 - **`ROADMAP.md`** — the plan of record: 40 numbered steps, each small and phone-testable.
-  Steps 1–33 (incl. 25.5, 26.5, 26.7) run in Expo Go; 34–37 are dev-build/release.
+  Steps 1–33 (incl. 25.5, 26.5, 26.7, 32.5) run in Expo Go; 34–37 are dev-build/release.
 - **`handoff.md`** — rewritten at the end of every session: what was done, decisions,
   where we are, the single next action. **The source of truth for current state.**
 - **`AGENTS.md`** (this file) — durable working rules and the architecture map.

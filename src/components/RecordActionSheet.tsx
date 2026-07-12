@@ -1,6 +1,7 @@
 import {
   Archive,
   ArchiveRestore,
+  Bell,
   CheckSquare,
   Folder as FolderIcon,
   Mic,
@@ -32,6 +33,7 @@ type Props = {
   onRename: () => void
   onMove: () => void
   onShare: () => void
+  onRemind: () => void
   onTrim: () => void
   onArchive: () => void
   onDelete: () => void
@@ -56,6 +58,7 @@ export function RecordActionSheet({
   onRename,
   onMove,
   onShare,
+  onRemind,
   onTrim,
   onArchive,
   onDelete,
@@ -72,6 +75,7 @@ export function RecordActionSheet({
   const amberIcon = light ? '#b45309' : '#fcd34d'
   const emeraldIcon = light ? '#047857' : '#6ee7b7'
   const fuchsiaIcon = light ? '#a21caf' : '#f0abfc'
+  const cyanIcon = light ? '#0e7490' : '#67e8f9'
   const zincIcon = light ? '#52525b' : '#d4d4d8'
   const redIcon = light ? '#dc2626' : '#f87171'
 
@@ -115,6 +119,14 @@ export function RecordActionSheet({
       chipColor: 'rgba(16,185,129,0.15)',
       iconColor: emeraldIcon,
       onPress: onShare,
+    },
+    {
+      key: 'remind',
+      label: 'Remind me',
+      Icon: Bell,
+      chipColor: 'rgba(6,182,212,0.15)',
+      iconColor: cyanIcon,
+      onPress: onRemind,
     },
     ...(!isTextNote
       ? [
